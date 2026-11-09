@@ -1,0 +1,448 @@
+/* KOF '98 COMPETITIVE COACHING LAB - DESIGN SYSTEM */
+:root {
+  --font-arcade: 'Teko', sans-serif;
+  --font-tech: 'Chakra Petch', sans-serif;
+  --font-retro: 'Press Start 2P', monospace;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --bg-deep: #06070a;
+  --bg-card: #0d0f18;
+  --bg-card-hover: #141724;
+  --bg-surface: #171b2d;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-neon: rgba(255, 46, 67, 0.4);
+
+  --snk-red: #ff2e43;
+  --snk-red-glow: rgba(255, 46, 67, 0.5);
+  --iori-purple: #9d4edd;
+  --iori-purple-glow: rgba(157, 78, 221, 0.5);
+  --kyo-orange: #ff6b35;
+  --kof-gold: #f59e0b;
+  --kof-gold-glow: rgba(245, 158, 11, 0.4);
+  --cyber-cyan: #00f0ff;
+  --cyber-cyan-glow: rgba(0, 240, 255, 0.4);
+  --matrix-green: #10b981;
+  --dark-blood: #2b0008;
+
+  --p1-color: #3b82f6;
+  --p1-glow: rgba(59, 130, 246, 0.4);
+  --p2-color: #ef4444;
+  --p2-glow: rgba(239, 68, 68, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-deep);
+  color: #e2e8f0;
+  font-family: var(--font-body);
+  line-height: 1.6;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(157, 78, 221, 0.15), transparent 45%),
+    radial-gradient(circle at 10% 30%, rgba(255, 46, 67, 0.08), transparent 35%),
+    radial-gradient(circle at 90% 70%, rgba(0, 240, 255, 0.08), transparent 40%),
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+}
+
+/* Subtle CRT scanline effect on background */
+.scanline-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 4px;
+  opacity: 0.35;
+}
+
+/* Typography Utility */
+.font-arcade {
+  font-family: var(--font-arcade);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.font-tech {
+  font-family: var(--font-tech);
+}
+
+.font-retro {
+  font-family: var(--font-retro);
+}
+
+/* Container */
+.kof-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* Arcade Neon Badges */
+.badge-arcade {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-tech);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 4px;
+  border: 1px solid var(--border-neon);
+  background: rgba(255, 46, 67, 0.1);
+  color: #ff8593;
+  box-shadow: 0 0 15px rgba(255, 46, 67, 0.2);
+}
+
+.badge-gold {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  box-shadow: 0 0 15px var(--kof-gold-glow);
+}
+
+.badge-cyan {
+  border-color: rgba(0, 240, 255, 0.4);
+  background: rgba(0, 240, 255, 0.1);
+  color: #38bdf8;
+  box-shadow: 0 0 15px var(--cyber-cyan-glow);
+}
+
+.badge-purple {
+  border-color: rgba(157, 78, 221, 0.4);
+  background: rgba(157, 78, 221, 0.12);
+  color: #c084fc;
+  box-shadow: 0 0 15px var(--iori-purple-glow);
+}
+
+/* Buttons */
+.btn-snk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1.8rem;
+  font-family: var(--font-arcade);
+  font-size: 1.4rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--snk-red);
+  background: linear-gradient(180deg, #ff4055 0%, #d90429 100%);
+  color: #fff;
+  box-shadow: 0 4px 20px var(--snk-red-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.btn-snk:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(255, 46, 67, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  filter: brightness(1.1);
+}
+
+.btn-snk:active {
+  transform: translateY(1px);
+}
+
+.btn-snk-gold {
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+  box-shadow: 0 4px 20px var(--kof-gold-glow);
+  color: #000;
+  font-weight: 700;
+  text-shadow: none;
+}
+
+.btn-snk-gold:hover {
+  box-shadow: 0 6px 25px rgba(245, 158, 11, 0.8);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-family: var(--font-tech);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  backdrop-filter: blur(8px);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* Glass Panels */
+.glass-panel {
+  background: rgba(13, 15, 24, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-panel-glow {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+}
+
+/* Character Selection Grids */
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .roster-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+.roster-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  user-select: none;
+}
+
+.roster-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--char-color, #ff2e43);
+  box-shadow: 0 8px 24px -4px var(--char-glow, rgba(255, 46, 67, 0.35));
+  z-index: 10;
+}
+
+.roster-card.selected-p1 {
+  border-color: var(--p1-color);
+  box-shadow: 0 0 16px var(--p1-glow), inset 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.roster-card.selected-p2 {
+  border-color: var(--p2-color);
+  box-shadow: 0 0 16px var(--p2-glow), inset 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.roster-card.disabled {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+  cursor: not-allowed;
+}
+
+.char-portrait-box {
+  width: 58px;
+  height: 58px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.roster-card:hover .char-portrait-box {
+  transform: scale(1.08);
+}
+
+.char-tier-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-family: var(--font-tech);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Team Slot Box */
+.team-slot-card {
+  background: var(--bg-card);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 160px;
+  transition: all 0.25s ease;
+}
+
+.team-slot-card.filled {
+  border-style: solid;
+  border-color: var(--slot-team-color, rgba(255, 255, 255, 0.2));
+  background: linear-gradient(135deg, rgba(20, 24, 38, 0.8) 0%, rgba(10, 12, 20, 0.9) 100%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.team-slot-card.active-target {
+  border-color: #fbbf24;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.35);
+  animation: pulseSlot 1.5s infinite;
+}
+
+@keyframes pulseSlot {
+
+  0%,
+  100% {
+    border-color: #fbbf24;
+  }
+
+  50% {
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+}
+
+/* Matchup Win Rate Bars */
+.winrate-bar-track {
+  height: 28px;
+  background: #1e293b;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.winrate-bar-p1 {
+  background: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%);
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem;
+  font-family: var(--font-tech);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.winrate-bar-p2 {
+  background: linear-gradient(90deg, #ef4444 0%, #b91c1c 100%);
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 0.75rem;
+  font-family: var(--font-tech);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.vs-divider-pill {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #090a0f;
+  border: 2px solid #f59e0b;
+  color: #fbbf24;
+  font-family: var(--font-arcade);
+  font-size: 1.1rem;
+  padding: 0 0.5rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+  z-index: 5;
+}
+
+/* Advance Mode Mood Box */
+.mood-badge-happy {
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+.mood-badge-neutral {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+}
+
+.mood-badge-angry {
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  animation: angryPulse 1.8s infinite;
+}
+
+@keyframes angryPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 12px 3px rgba(239, 68, 68, 0.6);
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #06070a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252a3d;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff2e43;
+}
