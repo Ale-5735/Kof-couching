@@ -1,9 +1,13 @@
-import React from 'react';
-import { Trophy, TrendingUp, AlertTriangle, ShieldCheck, Zap, Sparkles, Flame, CheckCircle2, Award } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trophy, TrendingUp, AlertTriangle, ShieldCheck, Zap, Sparkles, Flame, CheckCircle2, Award, Copy, Check } from 'lucide-react';
+import { CHARACTER_IMAGES } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
 
 export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
-  if (!evaluation || !team1 || !team2 || team1.length < 3 || team2.length < 3) {
+  const [copied, setCopied] = useState(false);
+
+  const isComplete = team1.filter(Boolean).length === 3 && team2.filter(Boolean).length === 3;
+  if (!evaluation || !isComplete) {
     return null;
   }
 
@@ -16,10 +20,43 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
     mood2,
     anchorComparison,
     coachingPlaybook,
+    slotMatchups,
   } = evaluation;
 
   const isT1Winner = overallWinRate >= 50;
-  const isSweep = overallWinRate >= 65 || overallWinRate <= 35;
+
+  const handleCopyReport = () => {
+    arcadeAudio.playSelect();
+    const t1Names = team1.map((c) => c.name).join(' / ');
+    const t2Names = team2.map((c) => c.name).join(' / ');
+
+    const reportText = `🥋 [KOF '98 COACHING LAB - REPORTE DE MATCHUP]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚔️ 1P TEAM: ${t1Names}
+⚔️ 2P RIVAL: ${t2Names}
+
+📊 RESULTADO ESPERADO: ${expectedScore} (${overallWinRate}% Victoria 1P vs ${team2WinRate}% 2P)
+⚡ RITMO ESTIMADO: ${matchPace}
+
+🥊 DESGLOSE POR ASALTO:
+• Round 1 (Point): ${slotMatchups[0].char1.name} (${slotMatchups[0].p1Rate}%) vs ${slotMatchups[0].char2.name} (${slotMatchups[0].p2Rate}%)
+• Round 2 (Mid): ${slotMatchups[1].char1.name} (${slotMatchups[1].p1Rate}%) vs ${slotMatchups[1].char2.name} (${slotMatchups[1].p2Rate}%)
+• Round 3 (Anchor): ${slotMatchups[2].char1.name} (${slotMatchups[2].p1Rate}%) vs ${slotMatchups[2].char2.name} (${slotMatchups[2].p2Rate}%)
+
+🔥 SINERGIA DE BARRAS (MOOD ADVANCE):
+• 1P: ${mood1.links.map((l) => `${l.from.name}→${l.to.name} [${l.icon} ${l.status}]`).join(' | ')}
+• 2P: ${mood2.links.map((l) => `${l.from.name}→${l.to.name} [${l.icon} ${l.status}]`).join(' | ')}
+
+💡 CONSEJO CLAVE DEL COACH:
+"${coachingPlaybook[0]}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏆 Entrena tu juego en KOF '98 Coaching Lab`;
+
+    navigator.clipboard.writeText(reportText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
 
   return (
     <section id="final-verdict" style={{
@@ -125,49 +162,106 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
             </div>
           </div>
 
-          {/* Quick Roster Lineup Summary */}
+          {/* Lineup Summary with Authentic Character Sprite Images */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '1.5rem',
             maxWidth: '900px',
-            margin: '0 auto'
+            margin: '0 auto 1.5rem auto'
           }}>
             <div style={{
-              background: 'rgba(0, 0, 0, 0.35)',
+              background: 'rgba(0, 0, 0, 0.45)',
               borderRadius: '8px',
               padding: '1rem',
-              border: '1px solid rgba(59, 130, 246, 0.2)'
+              border: '1px solid rgba(59, 130, 246, 0.25)'
             }}>
-              <span className="font-tech" style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>
-                ALINEACIÓN 1P:
+              <span className="font-tech" style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 700, display: 'block', marginBottom: '0.6rem' }}>
+                ALINEACIÓN 1P (ORDEN DE PELEA):
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {team1.map((c, i) => (
-                  <span key={i} style={{ fontSize: '0.9rem', color: '#e2e8f0' }}>
-                    {c.avatar} <strong>{c.name}</strong> {i < 2 ? '→' : ''}
-                  </span>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <div style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${c.color || '#3b82f6'}`,
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <img
+                        src={CHARACTER_IMAGES[c.id]}
+                        alt={c.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                    <span className="font-tech" style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 600 }}>
+                      {c.name}
+                    </span>
+                    {i < 2 && <span style={{ color: '#64748b', fontSize: '1.1rem', margin: '0 2px' }}>→</span>}
+                  </div>
                 ))}
               </div>
             </div>
 
             <div style={{
-              background: 'rgba(0, 0, 0, 0.35)',
+              background: 'rgba(0, 0, 0, 0.45)',
               borderRadius: '8px',
               padding: '1rem',
-              border: '1px solid rgba(239, 68, 68, 0.2)'
+              border: '1px solid rgba(239, 68, 68, 0.25)'
             }}>
-              <span className="font-tech" style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>
-                ALINEACIÓN 2P:
+              <span className="font-tech" style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: 700, display: 'block', marginBottom: '0.6rem' }}>
+                ALINEACIÓN 2P (ORDEN DE PELEA):
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {team2.map((c, i) => (
-                  <span key={i} style={{ fontSize: '0.9rem', color: '#e2e8f0' }}>
-                    {c.avatar} <strong>{c.name}</strong> {i < 2 ? '→' : ''}
-                  </span>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <div style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${c.color || '#ef4444'}`,
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <img
+                        src={CHARACTER_IMAGES[c.id]}
+                        alt={c.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                    <span className="font-tech" style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 600 }}>
+                      {c.name}
+                    </span>
+                    {i < 2 && <span style={{ color: '#64748b', fontSize: '1.1rem', margin: '0 2px' }}>→</span>}
+                  </div>
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Copy Report Button */}
+          <div style={{ textAlign: 'center' }}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={handleCopyReport}
+              style={{
+                fontSize: '0.88rem',
+                padding: '0.5rem 1.4rem',
+                border: '1px solid rgba(255, 255, 255, 0.15)'
+              }}
+            >
+              {copied ? <Check size={16} color="#10b981" /> : <Copy size={16} color="#fbbf24" />}
+              <span>{copied ? '¡Reporte Copiado al Portapapeles!' : 'Copiar Reporte para Discord / WhatsApp'}</span>
+            </button>
           </div>
         </div>
 
@@ -203,8 +297,8 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
                       link.status === 'happy'
                         ? 'mood-badge-happy'
                         : link.status === 'angry'
-                        ? 'mood-badge-angry'
-                        : 'mood-badge-neutral'
+                          ? 'mood-badge-angry'
+                          : 'mood-badge-neutral'
                     }
                     style={{
                       padding: '0.75rem 1rem',
@@ -236,8 +330,8 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
                       link.status === 'happy'
                         ? 'mood-badge-happy'
                         : link.status === 'angry'
-                        ? 'mood-badge-angry'
-                        : 'mood-badge-neutral'
+                          ? 'mood-badge-angry'
+                          : 'mood-badge-neutral'
                     }
                     style={{
                       padding: '0.75rem 1rem',
@@ -350,4 +444,3 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
     </section>
   );
 }
-

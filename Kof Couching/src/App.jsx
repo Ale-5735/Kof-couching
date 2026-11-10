@@ -13,18 +13,9 @@ import { BookingModal } from './components/BookingModal';
 import { Footer } from './components/Footer';
 
 function App() {
-  // Pre-populate with the legendary Xiaohai tournament meta team so the simulator is instantly alive
-  const [team1, setTeam1] = useState([
-    CHARACTERS.find((c) => c.id === 'chris'),
-    CHARACTERS.find((c) => c.id === 'iori'),
-    CHARACTERS.find((c) => c.id === 'daimon'),
-  ]);
-
-  const [team2, setTeam2] = useState([
-    CHARACTERS.find((c) => c.id === 'ochris'),
-    CHARACTERS.find((c) => c.id === 'chizuru'),
-    CHARACTERS.find((c) => c.id === 'oyashiro'),
-  ]);
+  // Recuadros P1 Team y P2 Team inician vacíos para que el usuario los arme eligiendo las imágenes de los pj
+  const [team1, setTeam1] = useState([null, null, null]);
+  const [team2, setTeam2] = useState([null, null, null]);
 
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedPlanForBooking, setSelectedPlanForBooking] = useState(null);
@@ -34,26 +25,24 @@ function App() {
     return evaluateTeamBattle(team1, team2);
   }, [team1, team2]);
 
-  // Add / assign character to target team
-  const handleSelectCharacter = (char, targetTeamNum) => {
+  // Assign character to target team and specific slot
+  const handleSelectCharacter = (char, targetTeamNum, targetSlotIdx) => {
     if (targetTeamNum === 1) {
-      // Find first empty slot or replace slot 0
       const newTeam = [...team1];
-      const emptyIdx = newTeam.findIndex((c) => !c);
-      if (emptyIdx !== -1) {
-        newTeam[emptyIdx] = char;
+      if (typeof targetSlotIdx === 'number' && targetSlotIdx >= 0 && targetSlotIdx < 3) {
+        newTeam[targetSlotIdx] = char;
       } else {
-        // Shift or cycle: replace slot 2
-        newTeam[2] = char;
+        const emptyIdx = newTeam.findIndex((c) => !c);
+        newTeam[emptyIdx !== -1 ? emptyIdx : 0] = char;
       }
       setTeam1(newTeam);
     } else {
       const newTeam = [...team2];
-      const emptyIdx = newTeam.findIndex((c) => !c);
-      if (emptyIdx !== -1) {
-        newTeam[emptyIdx] = char;
+      if (typeof targetSlotIdx === 'number' && targetSlotIdx >= 0 && targetSlotIdx < 3) {
+        newTeam[targetSlotIdx] = char;
       } else {
-        newTeam[2] = char;
+        const emptyIdx = newTeam.findIndex((c) => !c);
+        newTeam[emptyIdx !== -1 ? emptyIdx : 0] = char;
       }
       setTeam2(newTeam);
     }
@@ -115,7 +104,7 @@ function App() {
         onOpenBooking={() => setBookingModalOpen(true)}
       />
 
-      {/* Main Roster & Team Selector (Hover & Pick) */}
+      {/* Main Roster & Team Selector (Recuadros Vacíos que se llenan con imágenes de los personajes) */}
       <RosterSelect
         team1={team1}
         team2={team2}

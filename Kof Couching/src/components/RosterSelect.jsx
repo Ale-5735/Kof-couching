@@ -1,26 +1,35 @@
 import React, { useState } from 'react';
 import { CHARACTERS, TEAM_PRESETS } from '../data/characters';
+import { CHARACTER_IMAGES, UI_ICONS } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
-import { Users, X, Shuffle, ArrowRightLeft, Sparkles, AlertTriangle, Shield, CheckCircle2 } from 'lucide-react';
+import { Users, X, Shuffle, Sparkles, Check, Plus, ArrowRightLeft } from 'lucide-react';
 
 export function RosterSelect({
   team1,
   team2,
   onSelectCharacter,
   onRemoveCharacter,
-  onSwapSlots,
   onApplyPreset,
   onRandomize,
   onClearTeams,
 }) {
-  const [activeTeamTarget, setActiveTeamTarget] = useState(1); // 1 = P1, 2 = P2
+  // activeTarget: { team: 1 | 2, slot: 0 | 1 | 2 }
+  // Defaults to first empty slot in P1, or slot 0
+  const [activeTarget, setActiveTarget] = useState(() => {
+    const p1Empty = team1.findIndex((c) => !c);
+    if (p1Empty !== -1) return { team: 1, slot: p1Empty };
+    const p2Empty = team2.findIndex((c) => !c);
+    if (p2Empty !== -1) return { team: 2, slot: p2Empty };
+    return { team: 1, slot: 0 };
+  });
+
   const [hoveredChar, setHoveredChar] = useState(null);
   const [tierFilter, setTierFilter] = useState('ALL');
 
   const slotLabels = [
-    { title: 'POINT (1º)', desc: '0 Barras / Generador de Presión', color: '#38bdf8' },
-    { title: 'MID (2º)', desc: '1-2 Barras / Control de Inercia', color: '#fbbf24' },
-    { title: 'ANCHOR (3º)', desc: '3 Barras / Máximo Clutch & Daño', color: '#ef4444' },
+    { title: 'POINT (1º)', roleDesc: 'Iniciador • 0 Barras', color: '#38bdf8' },
+    { title: 'MID (2º)', roleDesc: 'Control • 1-2 Barras', color: '#fbbf24' },
+    { title: 'ANCHOR (3º)', roleDesc: 'Clutch Final • 3 Barras', color: '#ef4444' },
   ];
 
   // Filtering characters
@@ -35,13 +44,281 @@ export function RosterSelect({
 
   const handleCardClick = (char) => {
     arcadeAudio.playSelect();
-    onSelectCharacter(char, activeTeamTarget);
+    onSelectCharacter(char, activeTarget.team, activeTarget.slot);
+
+    // Auto-advance target slot to the next available empty slot
+    if (activeTarget.team === 1) {
+      const nextP1 = team1.findIndex((c, idx) => !c && idx !== activeTarget.slot);
+      if (nextP1 !== -1) {
+        setActiveTarget({ team: 1, slot: nextP1 });
+      } else {
+        // Move to P2 first empty
+        const nextP2 = team2.findIndex((c) => !c);
+        if (nextP2 !== -1) {
+          setActiveTarget({ team: 2, slot: nextP2 });
+        }
+      }
+    } else {
+      const nextP2 = team2.findIndex((c, idx) => !c && idx !== activeTarget.slot);
+      if (nextP2 !== -1) {
+        setActiveTarget({ team: 2, slot: nextP2 });
+      } else {
+        const nextP1 = team1.findIndex((c) => !c);
+        if (nextP1 !== -1) {
+          setActiveTarget({ team: 1, slot: nextP1 });
+        }
+      }
+    }
+  };
+
+  const handleSlotClick = (teamNum, slotIdx) => {
+    arcadeAudio.playHover();
+    setActiveTarget({ team: teamNum, slot: slotIdx });
   };
 
   const handleCardHover = (char) => {
     setHoveredChar(char);
     arcadeAudio.playHover();
   };
+
+  // Helper to render an empty or filled team slot
+  const renderTeamSlot = (char, slotIdx, teamNum) => {
+    const meta = slotLabels[slotIdx];
+    const isTarget = activeTarget.team === teamNum && activeTarget.slot === slotIdx;
+    const isP1 = teamNum === 1;
+    const teamAccent = isP1 ? '#3b82f6' : '#ef4444';
+    const charImg = char ? CHARACTER_IMAGES[char.id] : null;
+
+    return (
+      <div
+        key={slotIdx}
+        onClick={() => handleSlotClick(teamNum, slotIdx)}
+        className={`team-slot-card ${char ? 'filled' : 'empty-slot'}`}
+        style={{
+          cursor: 'pointer',
+          position: 'relative',
+          padding: '0.85rem',
+          minHeight: '190px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderRadius: '10px',
+          background: char
+            ? 'linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(9, 10, 15, 0.95) 100%)'
+            : isTarget
+              ? isP1
+                ? 'rgba(59, 130, 246, 0.12)'
+                : 'rgba(239, 68, 68, 0.12)'
+              : 'rgba(10, 12, 18, 0.6)',
+          border: isTarget
+            ? `2px solid ${isP1 ? '#60a5fa' : '#f87171'}`
+            : char
+              ? `1px solid ${char.color || teamAccent}`
+              : '1px dashed rgba(255, 255, 255, 0.18)',
+          boxShadow: isTarget
+            ? `0 0 20px ${isP1 ? 'rgba(59, 130, 246, 0.45)' : 'rgba(239, 68, 68, 0.45)'}`
+            : char
+              ? `0 4px 15px rgba(0, 0, 0, 0.5)`
+              : 'none',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        {/* Active Target Cursor Indicator */}
+        {isTarget && (
+          <div style={{
+            position: 'absolute',
+            top: '-10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: isP1 ? '#2563eb' : '#dc2626',
+            color: '#fff',
+            fontFamily: 'var(--font-arcade)',
+            fontSize: '0.85rem',
+            padding: '1px 8px',
+            borderRadius: '4px',
+            letterSpacing: '0.05em',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap'
+          }}>
+            <img
+              src={isP1 ? UI_ICONS.p1Cursor : UI_ICONS.p2Cursor}
+              alt=""
+              style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }}
+            />
+            <span>ELIGE AQUÍ</span>
+          </div>
+        )}
+
+        {/* Slot Header Label */}
+        <div style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          paddingBottom: '0.35rem',
+          marginBottom: '0.5rem'
+        }}>
+          <span className="font-tech" style={{ fontSize: '0.75rem', fontWeight: 700, color: meta.color }}>
+            {meta.title}
+          </span>
+          {char && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                arcadeAudio.playDeselect();
+                onRemoveCharacter(teamNum, slotIdx);
+              }}
+              style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '4px',
+                color: '#f87171',
+                cursor: 'pointer',
+                padding: '2px 4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1
+              }}
+              title="Vaciar este recuadro"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* Slot Body: Filled Character or Empty Placeholder */}
+        {char ? (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 'auto',
+            marginBottom: 'auto'
+          }}>
+            {/* Character Portrait Image */}
+            <div style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '8px',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.8) 100%)',
+              border: `2px solid ${char.color || teamAccent}`,
+              boxShadow: `0 0 15px ${char.color ? char.color + '50' : 'rgba(0,0,0,0.5)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              marginBottom: '0.5rem'
+            }}>
+              {charImg ? (
+                <img
+                  src={charImg}
+                  alt={char.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    imageRendering: 'pixelated'
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: '2.2rem' }}>{char.avatar}</span>
+              )}
+            </div>
+
+            {/* Character Name & Tier */}
+            <div className="font-tech" style={{
+              fontSize: '0.92rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%'
+            }}>
+              {char.name}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.2rem' }}>
+              <span className="badge-arcade" style={{
+                fontSize: '0.65rem',
+                padding: '1px 5px',
+                borderColor: char.color,
+                color: char.color
+              }}>
+                TIER {char.tier}
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* Empty Box Placeholder */
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 'auto',
+            marginBottom: 'auto',
+            textAlign: 'center',
+            color: '#64748b',
+            width: '100%',
+            padding: '0.5rem 0'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '8px',
+              border: '2px dashed rgba(255, 255, 255, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '0.5rem',
+              background: 'rgba(0, 0, 0, 0.3)'
+            }}>
+              <Plus size={24} color={isTarget ? (isP1 ? '#60a5fa' : '#f87171') : '#475569'} />
+            </div>
+
+            <span className="font-tech" style={{
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              color: isTarget ? (isP1 ? '#93c5fd' : '#fca5a5') : '#94a3b8'
+            }}>
+              [RECUADRO VACÍO]
+            </span>
+            <span style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px' }}>
+              {meta.roleDesc}
+            </span>
+          </div>
+        )}
+
+        {/* Slot Bottom Role Tag */}
+        <div style={{
+          fontSize: '0.68rem',
+          color: char ? '#94a3b8' : '#64748b',
+          textAlign: 'center',
+          marginTop: 'auto',
+          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+          width: '100%',
+          paddingTop: '0.3rem'
+        }}>
+          {char ? char.archetype.split('/')[0] : 'Haz click para asignar'}
+        </div>
+      </div>
+    );
+  };
+
+  const p1FilledCount = team1.filter(Boolean).length;
+  const p2FilledCount = team2.filter(Boolean).length;
 
   return (
     <section id="simulator" style={{ padding: '3rem 0', position: 'relative' }}>
@@ -50,14 +327,14 @@ export function RosterSelect({
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <div style={{ display: 'inline-flex', marginBottom: '0.75rem' }}>
             <span className="badge-arcade" style={{ background: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.3)', color: '#60a5fa' }}>
-              <Users size={14} /> SELECT YOUR TEAMS • 1P VS 2P
+              <Users size={14} /> SELECT YOUR FIGHTERS • KOF '98 ROSTER
             </span>
           </div>
           <h2 className="font-arcade" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.8rem)', color: '#fff', lineHeight: 1 }}>
-            ROSTER INTERACTIVO & ARMADO DE EQUIPOS
+            ARMADO DE EQUIPOS 1P VS 2P
           </h2>
           <p style={{ color: '#94a3b8', maxWidth: '750px', margin: '0 auto', fontSize: '1rem' }}>
-            Selecciona 3 luchadores para cada escuadra. Haz hover sobre cualquier personaje para inspeccionar sus estadísticas de torneo, estilo de juego y rol recomendado.
+            Haz click en cualquier <strong>recuadro vacío</strong> de tu equipo o del rival, y luego pulsa sobre la <strong>imagen del personaje</strong> en el roster para asignarlo.
           </p>
         </div>
 
@@ -74,7 +351,7 @@ export function RosterSelect({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <span className="font-tech" style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>
-              EQUIPOS META:
+              PRESETS COMPETITIVOS:
             </span>
             {TEAM_PRESETS.map((preset, idx) => (
               <button
@@ -107,10 +384,12 @@ export function RosterSelect({
                 arcadeAudio.playSelect();
                 onRandomize();
               }}
+              title="Llenar ambos equipos con luchadores aleatorios"
             >
-              <Shuffle size={14} />
+              <img src={UI_ICONS.random} alt="Random" style={{ width: '16px', height: '16px', imageRendering: 'pixelated' }} />
               <span>Aleatorio</span>
             </button>
+
             <button
               type="button"
               className="btn-ghost"
@@ -119,14 +398,15 @@ export function RosterSelect({
                 arcadeAudio.playDeselect();
                 onClearTeams();
               }}
+              title="Vaciar todos los recuadros de ambos equipos"
             >
               <X size={14} />
-              <span>Limpiar</span>
+              <span>Vaciar Recuadros</span>
             </button>
           </div>
         </div>
 
-        {/* Team 1 vs Team 2 Displays */}
+        {/* Team 1 vs Team 2 Empty/Filled Slot Displays */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
@@ -136,8 +416,8 @@ export function RosterSelect({
           {/* Team 1 (P1 - Tu Equipo) */}
           <div className="glass-panel" style={{
             padding: '1.25rem',
-            border: activeTeamTarget === 1 ? '2px solid #3b82f6' : '1px solid rgba(59, 130, 246, 0.25)',
-            boxShadow: activeTeamTarget === 1 ? '0 0 25px rgba(59, 130, 246, 0.25)' : 'none',
+            border: activeTarget.team === 1 ? '2px solid #3b82f6' : '1px solid rgba(59, 130, 246, 0.25)',
+            boxShadow: activeTarget.team === 1 ? '0 0 25px rgba(59, 130, 246, 0.25)' : 'none',
             background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.15) 0%, rgba(13, 15, 24, 0.9) 100%)'
           }}>
             <div style={{
@@ -149,108 +429,41 @@ export function RosterSelect({
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <img src={UI_ICONS.p1Cursor} alt="P1" style={{ width: '18px', height: '18px', imageRendering: 'pixelated' }} />
                 <span className="font-arcade" style={{ fontSize: '1.8rem', color: '#60a5fa', lineHeight: 1 }}>1P TEAM</span>
-                <span className="badge-cyan" style={{ fontSize: '0.7rem' }}>TU EQUIPO</span>
+                <span className="badge-cyan" style={{ fontSize: '0.7rem' }}>TU EQUIPO ({p1FilledCount}/3)</span>
               </div>
               <button
                 type="button"
                 className="btn-ghost"
                 onClick={() => {
                   arcadeAudio.playCoin();
-                  setActiveTeamTarget(1);
+                  const firstEmpty = team1.findIndex((c) => !c);
+                  setActiveTarget({ team: 1, slot: firstEmpty !== -1 ? firstEmpty : 0 });
                 }}
                 style={{
                   fontSize: '0.8rem',
                   padding: '0.35rem 0.8rem',
-                  background: activeTeamTarget === 1 ? '#2563eb' : 'transparent',
-                  color: activeTeamTarget === 1 ? '#fff' : '#94a3b8',
-                  borderColor: activeTeamTarget === 1 ? '#60a5fa' : 'rgba(255,255,255,0.1)'
+                  background: activeTarget.team === 1 ? '#2563eb' : 'transparent',
+                  color: activeTarget.team === 1 ? '#fff' : '#94a3b8',
+                  borderColor: activeTarget.team === 1 ? '#60a5fa' : 'rgba(255,255,255,0.1)'
                 }}
               >
-                {activeTeamTarget === 1 ? 'Drafteando Aquí...' : 'Seleccionar este equipo'}
+                {activeTarget.team === 1 ? 'Drafteando Aquí...' : 'Seleccionar para 1P'}
               </button>
             </div>
 
-            {/* 3 Slots */}
+            {/* 3 Slots for Team 1 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-              {[0, 1, 2].map((slotIdx) => {
-                const char = team1[slotIdx];
-                const meta = slotLabels[slotIdx];
-                return (
-                  <div
-                    key={slotIdx}
-                    className={`team-slot-card ${char ? 'filled' : ''} ${activeTeamTarget === 1 && !char ? 'active-target' : ''}`}
-                    style={{ '--slot-team-color': '#3b82f6' }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.5rem'
-                    }}>
-                      <span className="font-tech" style={{ fontSize: '0.75rem', fontWeight: 700, color: meta.color }}>
-                        {meta.title}
-                      </span>
-                      {char && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            arcadeAudio.playDeselect();
-                            onRemoveCharacter(1, slotIdx);
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            padding: '2px'
-                          }}
-                          title="Eliminar luchador"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-
-                    {char ? (
-                      <div style={{ textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
-                        <div style={{
-                          fontSize: '2.2rem',
-                          lineHeight: 1,
-                          marginBottom: '0.4rem',
-                          filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))'
-                        }}>
-                          {char.avatar}
-                        </div>
-                        <div className="font-tech" style={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {char.name}
-                        </div>
-                        <span className="badge-arcade" style={{ fontSize: '0.65rem', padding: '1px 5px', marginTop: '0.25rem' }}>
-                          TIER {char.tier}
-                        </span>
-                      </div>
-                    ) : (
-                      <div style={{
-                        marginTop: 'auto',
-                        marginBottom: 'auto',
-                        textAlign: 'center',
-                        color: '#64748b'
-                      }}>
-                        <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>+</div>
-                        <div className="font-tech" style={{ fontSize: '0.75rem' }}>Elige {slotIdx + 1}º</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {[0, 1, 2].map((slotIdx) => renderTeamSlot(team1[slotIdx], slotIdx, 1))}
             </div>
           </div>
 
           {/* Team 2 (P2 - Rival) */}
           <div className="glass-panel" style={{
             padding: '1.25rem',
-            border: activeTeamTarget === 2 ? '2px solid #ef4444' : '1px solid rgba(239, 68, 68, 0.25)',
-            boxShadow: activeTeamTarget === 2 ? '0 0 25px rgba(239, 68, 68, 0.25)' : 'none',
+            border: activeTarget.team === 2 ? '2px solid #ef4444' : '1px solid rgba(239, 68, 68, 0.25)',
+            boxShadow: activeTarget.team === 2 ? '0 0 25px rgba(239, 68, 68, 0.25)' : 'none',
             background: 'linear-gradient(180deg, rgba(153, 27, 27, 0.15) 0%, rgba(13, 15, 24, 0.9) 100%)'
           }}>
             <div style={{
@@ -262,100 +475,33 @@ export function RosterSelect({
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <img src={UI_ICONS.p2Cursor} alt="P2" style={{ width: '18px', height: '18px', imageRendering: 'pixelated' }} />
                 <span className="font-arcade" style={{ fontSize: '1.8rem', color: '#f87171', lineHeight: 1 }}>2P TEAM</span>
-                <span className="badge-arcade" style={{ fontSize: '0.7rem' }}>RIVAL</span>
+                <span className="badge-arcade" style={{ fontSize: '0.7rem' }}>RIVAL ({p2FilledCount}/3)</span>
               </div>
               <button
                 type="button"
                 className="btn-ghost"
                 onClick={() => {
                   arcadeAudio.playCoin();
-                  setActiveTeamTarget(2);
+                  const firstEmpty = team2.findIndex((c) => !c);
+                  setActiveTarget({ team: 2, slot: firstEmpty !== -1 ? firstEmpty : 0 });
                 }}
                 style={{
                   fontSize: '0.8rem',
                   padding: '0.35rem 0.8rem',
-                  background: activeTeamTarget === 2 ? '#dc2626' : 'transparent',
-                  color: activeTeamTarget === 2 ? '#fff' : '#94a3b8',
-                  borderColor: activeTeamTarget === 2 ? '#ef4444' : 'rgba(255,255,255,0.1)'
+                  background: activeTarget.team === 2 ? '#dc2626' : 'transparent',
+                  color: activeTarget.team === 2 ? '#fff' : '#94a3b8',
+                  borderColor: activeTarget.team === 2 ? '#ef4444' : 'rgba(255,255,255,0.1)'
                 }}
               >
-                {activeTeamTarget === 2 ? 'Drafteando Aquí...' : 'Seleccionar este equipo'}
+                {activeTarget.team === 2 ? 'Drafteando Aquí...' : 'Seleccionar para 2P'}
               </button>
             </div>
 
-            {/* 3 Slots */}
+            {/* 3 Slots for Team 2 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-              {[0, 1, 2].map((slotIdx) => {
-                const char = team2[slotIdx];
-                const meta = slotLabels[slotIdx];
-                return (
-                  <div
-                    key={slotIdx}
-                    className={`team-slot-card ${char ? 'filled' : ''} ${activeTeamTarget === 2 && !char ? 'active-target' : ''}`}
-                    style={{ '--slot-team-color': '#ef4444' }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.5rem'
-                    }}>
-                      <span className="font-tech" style={{ fontSize: '0.75rem', fontWeight: 700, color: meta.color }}>
-                        {meta.title}
-                      </span>
-                      {char && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            arcadeAudio.playDeselect();
-                            onRemoveCharacter(2, slotIdx);
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            padding: '2px'
-                          }}
-                          title="Eliminar luchador"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-
-                    {char ? (
-                      <div style={{ textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
-                        <div style={{
-                          fontSize: '2.2rem',
-                          lineHeight: 1,
-                          marginBottom: '0.4rem',
-                          filter: 'drop-shadow(0 0 10px rgba(239, 68, 68, 0.5))'
-                        }}>
-                          {char.avatar}
-                        </div>
-                        <div className="font-tech" style={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {char.name}
-                        </div>
-                        <span className="badge-arcade" style={{ fontSize: '0.65rem', padding: '1px 5px', marginTop: '0.25rem' }}>
-                          TIER {char.tier}
-                        </span>
-                      </div>
-                    ) : (
-                      <div style={{
-                        marginTop: 'auto',
-                        marginBottom: 'auto',
-                        textAlign: 'center',
-                        color: '#64748b'
-                      }}>
-                        <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>+</div>
-                        <div className="font-tech" style={{ fontSize: '0.75rem' }}>Elige {slotIdx + 1}º</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {[0, 1, 2].map((slotIdx) => renderTeamSlot(team2[slotIdx], slotIdx, 2))}
             </div>
           </div>
         </div>
@@ -376,13 +522,13 @@ export function RosterSelect({
               justifyContent: 'space-between',
               flexWrap: 'wrap',
               gap: '0.75rem',
-              marginBottom: '1.5rem',
+              marginBottom: '1.25rem',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
               paddingBottom: '0.75rem'
             }}>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                 {[
-                  { id: 'ALL', label: 'Todos' },
+                  { id: 'ALL', label: 'Todos (41)' },
                   { id: 'TOP', label: 'God & S-Tier' },
                   { id: 'GRAPPLER', label: 'Grapplers' },
                   { id: 'RUSHDOWN', label: 'Rushdown' },
@@ -394,8 +540,8 @@ export function RosterSelect({
                     onClick={() => setTierFilter(tab.id)}
                     className="btn-ghost"
                     style={{
-                      fontSize: '0.8rem',
-                      padding: '0.35rem 0.8rem',
+                      fontSize: '0.78rem',
+                      padding: '0.3rem 0.75rem',
                       background: tierFilter === tab.id ? 'rgba(255, 46, 67, 0.2)' : 'transparent',
                       borderColor: tierFilter === tab.id ? '#ff2e43' : 'rgba(255, 255, 255, 0.1)',
                       color: tierFilter === tab.id ? '#fff' : '#94a3b8'
@@ -406,18 +552,35 @@ export function RosterSelect({
                 ))}
               </div>
 
-              <div className="font-tech" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                Haciendo click añades a: <strong style={{ color: activeTeamTarget === 1 ? '#60a5fa' : '#f87171' }}>
-                  {activeTeamTarget === 1 ? '1P Equipo' : '2P Rival'}
+              <div className="font-tech" style={{
+                fontSize: '0.82rem',
+                color: '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <img
+                  src={activeTarget.team === 1 ? UI_ICONS.p1Cursor : UI_ICONS.p2Cursor}
+                  alt=""
+                  style={{ width: '14px', height: '14px', imageRendering: 'pixelated' }}
+                />
+                <span>Próximo personaje se asignará a:</span>
+                <strong style={{ color: activeTarget.team === 1 ? '#60a5fa' : '#f87171' }}>
+                  {activeTarget.team === 1 ? '1P' : '2P'} {slotLabels[activeTarget.slot].title}
                 </strong>
               </div>
             </div>
 
-            {/* Grid of Characters */}
-            <div className="roster-grid">
+            {/* Grid of Characters with Authentic Portrait PNGs */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+              gap: '0.65rem'
+            }}>
               {filteredChars.map((char) => {
                 const isSelectedInP1 = team1.some((c) => c?.id === char.id);
                 const isSelectedInP2 = team2.some((c) => c?.id === char.id);
+                const charImg = CHARACTER_IMAGES[char.id];
 
                 return (
                   <div
@@ -425,59 +588,110 @@ export function RosterSelect({
                     className={`roster-card ${isSelectedInP1 ? 'selected-p1' : ''} ${isSelectedInP2 ? 'selected-p2' : ''}`}
                     style={{
                       '--char-color': char.color,
-                      '--char-glow': `${char.color}88`
+                      '--char-glow': `${char.color}88`,
+                      padding: '0.45rem',
+                      borderRadius: '8px',
+                      background: isSelectedInP1
+                        ? 'rgba(30, 58, 138, 0.4)'
+                        : isSelectedInP2
+                          ? 'rgba(153, 27, 27, 0.4)'
+                          : 'rgba(13, 15, 24, 0.85)',
+                      border: isSelectedInP1
+                        ? '2px solid #3b82f6'
+                        : isSelectedInP2
+                          ? '2px solid #ef4444'
+                          : '1px solid rgba(255, 255, 255, 0.1)',
+                      position: 'relative'
                     }}
                     onClick={() => handleCardClick(char)}
                     onMouseEnter={() => handleCardHover(char)}
                   >
-                    <span className="char-tier-badge" style={{ color: char.color }}>
-                      {char.tier}
-                    </span>
-
-                    <div className="char-portrait-box" style={{ background: char.portraitBg }}>
-                      <span>{char.avatar}</span>
+                    {/* Character Sprite Image */}
+                    <div style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.6) 100%)',
+                      border: `1px solid ${char.color || 'rgba(255,255,255,0.15)'}`,
+                      marginBottom: '0.35rem',
+                      overflow: 'hidden'
+                    }}>
+                      {charImg ? (
+                        <img
+                          src={charImg}
+                          alt={char.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain',
+                            imageRendering: 'pixelated'
+                          }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '1.6rem' }}>{char.avatar}</span>
+                      )}
                     </div>
 
+                    {/* Character Name */}
                     <span className="font-tech" style={{
-                      fontSize: '0.82rem',
+                      fontSize: '0.78rem',
                       fontWeight: 700,
                       color: '#f8fafc',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      maxWidth: '100%'
+                      maxWidth: '100%',
+                      display: 'block'
                     }}>
-                      {char.name}
+                      {char.name.split(' ')[0]}
                     </span>
 
-                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>
-                      {char.role.split('/')[0]}
+                    {/* Tier Badge */}
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontFamily: 'var(--font-tech)',
+                      color: char.color,
+                      fontWeight: 700,
+                      marginTop: '1px'
+                    }}>
+                      {char.tier}
                     </span>
 
-                    {/* Indicators */}
+                    {/* Selected Badge Overlays */}
                     {isSelectedInP1 && (
                       <span style={{
                         position: 'absolute',
-                        bottom: '4px',
+                        top: '4px',
                         left: '4px',
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
                         background: '#3b82f6',
-                        boxShadow: '0 0 6px #3b82f6'
-                      }} title="En 1P Team" />
+                        color: '#fff',
+                        fontFamily: 'var(--font-arcade)',
+                        fontSize: '0.65rem',
+                        padding: '1px 3px',
+                        borderRadius: '2px',
+                        lineHeight: 1
+                      }}>
+                        1P
+                      </span>
                     )}
                     {isSelectedInP2 && (
                       <span style={{
                         position: 'absolute',
-                        bottom: '4px',
+                        top: '4px',
                         right: '4px',
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
                         background: '#ef4444',
-                        boxShadow: '0 0 6px #ef4444'
-                      }} title="En 2P Team" />
+                        color: '#fff',
+                        fontFamily: 'var(--font-arcade)',
+                        fontSize: '0.65rem',
+                        padding: '1px 3px',
+                        borderRadius: '2px',
+                        lineHeight: 1
+                      }}>
+                        2P
+                      </span>
                     )}
                   </div>
                 );
@@ -496,17 +710,31 @@ export function RosterSelect({
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                 <div style={{
-                  width: '64px',
-                  height: '64px',
+                  width: '74px',
+                  height: '74px',
                   borderRadius: '10px',
                   background: hoveredChar.portraitBg,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '2.5rem',
-                  border: `2px solid ${hoveredChar.color}`
+                  border: `2px solid ${hoveredChar.color}`,
+                  overflow: 'hidden',
+                  flexShrink: 0
                 }}>
-                  {hoveredChar.avatar}
+                  {CHARACTER_IMAGES[hoveredChar.id] ? (
+                    <img
+                      src={CHARACTER_IMAGES[hoveredChar.id]}
+                      alt={hoveredChar.name}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        imageRendering: 'pixelated'
+                      }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: '2.5rem' }}>{hoveredChar.avatar}</span>
+                  )}
                 </div>
                 <div>
                   <div className="badge-arcade" style={{ fontSize: '0.65rem', marginBottom: '0.2rem' }}>
@@ -585,4 +813,3 @@ export function RosterSelect({
     </section>
   );
 }
-

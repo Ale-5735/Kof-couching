@@ -111,8 +111,8 @@ export function calculateSlotMatchup(char1, char2, slotIndex) {
       finalP1Rate >= 55
         ? `Ventaja favorable para ${char1.name} (${finalP1Rate}%). Mantén el control con pokes y castiga las entradas forzadas de ${char2.name}.`
         : finalP1Rate <= 45
-        ? `Matchup complicado para ${char1.name} (${finalP1Rate}%). Juega paciente, evita saltos telegrafiados y prioriza defensas sólidas.`
-        : `Duelo 5-5 sumamente parejo (${finalP1Rate}% - ${finalP2Rate}%). Se definirá por quién controle mejor los safe hops y el timing de reversals.`,
+          ? `Matchup complicado para ${char1.name} (${finalP1Rate}%). Juega paciente, evita saltos telegrafiados y prioriza defensas sólidas.`
+          : `Duelo 5-5 sumamente parejo (${finalP1Rate}% - ${finalP2Rate}%). Se definirá por quién controle mejor los safe hops y el timing de reversals.`,
   };
 }
 
@@ -180,6 +180,9 @@ export function evaluateTeamBattle(team1, team2) {
 
   // 3. Weight overall win rate:
   // Point: 30%, Mid: 30%, Anchor: 40% (anchor clutch matters more in KOF 98)
+  if (!slotMatchups[0] || !slotMatchups[1] || !slotMatchups[2]) {
+    return 0;
+  }
   const weightedBase =
     slotMatchups[0].p1Rate * 0.3 +
     slotMatchups[1].p1Rate * 0.3 +
@@ -218,15 +221,15 @@ export function evaluateTeamBattle(team1, team2) {
   const anchor2 = team2[2];
   const anchorComparison =
     anchor1.stats.damage + (anchor1.id === 'daimon' ? 10 : 0) >=
-    anchor2.stats.damage + (anchor2.id === 'daimon' ? 10 : 0)
+      anchor2.stats.damage + (anchor2.id === 'daimon' ? 10 : 0)
       ? {
-          favors: 'team1',
-          text: `${anchor1.name} tiene un potencial de clutch superior en la última línea gracias a su daño con 3 barras.`,
-        }
+        favors: 'team1',
+        text: `${anchor1.name} tiene un potencial de clutch superior en la última línea gracias a su daño con 3 barras.`,
+      }
       : {
-          favors: 'team2',
-          text: `${anchor2.name} tiene mayor capacidad de remontada en situación de Anchor rival si llega con medidor completo.`,
-        };
+        favors: 'team2',
+        text: `${anchor2.name} tiene mayor capacidad de remontada en situación de Anchor rival si llega con medidor completo.`,
+      };
 
   // Strategic Coaching Playbook
   const coachingPlaybook = [];

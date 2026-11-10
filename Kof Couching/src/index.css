@@ -428,7 +428,25 @@ body {
   }
 }
 
-/* Custom Scrollbars */
+/* Pixel Art crisp rendering */
+img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.empty-slot {
+  background: rgba(10, 12, 18, 0.7);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.empty-slot:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(20, 24, 38, 0.6);
+  transform: translateY(-2px);
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
