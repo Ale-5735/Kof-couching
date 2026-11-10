@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CHARACTERS, TEAM_PRESETS } from './data/characters';
+import { CHARACTERS, TEAM_PRESETS, OROCHI_COUNTERPARTS } from './data/characters';
 import { evaluateTeamBattle } from './utils/matchupEngine';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -68,9 +68,23 @@ function App() {
   };
 
   const handleRandomize = () => {
-    const shuffled = [...CHARACTERS].sort(() => 0.5 - Math.random());
-    setTeam1(shuffled.slice(0, 3));
-    setTeam2(shuffled.slice(3, 6));
+    const pickValidTeam = () => {
+      const picked = [];
+      const shuffled = [...CHARACTERS].sort(() => 0.5 - Math.random());
+      for (const char of shuffled) {
+        if (picked.length === 3) break;
+        // Avoid duplicate character
+        if (picked.some((c) => c.id === char.id)) continue;
+        // Avoid Orochi / Normal counterpart on same team
+        const counterpartId = OROCHI_COUNTERPARTS[char.id];
+        if (counterpartId && picked.some((c) => c.id === counterpartId)) continue;
+        picked.push(char);
+      }
+      return picked;
+    };
+
+    setTeam1(pickValidTeam());
+    setTeam2(pickValidTeam());
   };
 
   const handleClearTeams = () => {

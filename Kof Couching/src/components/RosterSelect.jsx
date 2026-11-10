@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { CHARACTERS, TEAM_PRESETS } from '../data/characters';
+import { CHARACTERS, TEAM_PRESETS, OROCHI_COUNTERPARTS } from '../data/characters';
 import { CHARACTER_IMAGES, UI_ICONS } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
-import { Users, X, Shuffle, Sparkles, Check, Plus, ArrowRightLeft } from 'lucide-react';
+import { Users, X, Shuffle, Sparkles, Plus, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 export function RosterSelect({
   team1,
@@ -14,7 +14,6 @@ export function RosterSelect({
   onClearTeams,
 }) {
   // activeTarget: { team: 1 | 2, slot: 0 | 1 | 2 }
-  // Defaults to first empty slot in P1, or slot 0
   const [activeTarget, setActiveTarget] = useState(() => {
     const p1Empty = team1.findIndex((c) => !c);
     if (p1Empty !== -1) return { team: 1, slot: p1Empty };
@@ -25,12 +24,50 @@ export function RosterSelect({
 
   const [hoveredChar, setHoveredChar] = useState(null);
   const [tierFilter, setTierFilter] = useState('ALL');
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [conflictToast, setConflictToast] = useState(null);
 
   const slotLabels = [
     { title: 'POINT (1º)', roleDesc: 'Iniciador • 0 Barras', color: '#38bdf8' },
     { title: 'MID (2º)', roleDesc: 'Control • 1-2 Barras', color: '#fbbf24' },
     { title: 'ANCHOR (3º)', roleDesc: 'Clutch Final • 3 Barras', color: '#ef4444' },
   ];
+
+  // Current active team being drafted
+  const currentTeam = activeTarget.team === 1 ? team1 : team2;
+
+  // Check if character or its Orochi counterpart is blocked for the current drafting team
+  const getConflictInfo = (char) => {
+    if (!char) return { isBlocked: false, reason: '' };
+
+    for (let idx = 0; idx < currentTeam.length; idx++) {
+      // If replacing this exact slot, don't count it as a conflict
+      if (idx === activeTarget.slot) continue;
+
+      const existing = currentTeam[idx];
+      if (!existing) continue;
+
+      // 1. Same character already on team
+      if (existing.id === char.id) {
+        return {
+          isBlocked: true,
+          reason: `${char.name} ya está en este equipo (${slotLabels[idx].title}).`,
+          badge: 'YA EN EQUIPO',
+        };
+      }
+
+      // 2. Orochi counterpart check (Chris <-> O.Chris, Yashiro <-> O.Yashiro, Shermie <-> O.Shermie)
+      if (OROCHI_COUNTERPARTS[char.id] === existing.id) {
+        return {
+          isBlocked: true,
+          reason: `¡Regla Oficial KOF 98! No puedes tener a ${char.name} y a su versión ${existing.name} en el mismo equipo (elegido en ${slotLabels[idx].title}).`,
+          badge: 'CONTRAPARTE ACTIVA',
+        };
+      }
+    }
+
+    return { isBlocked: false, reason: '' };
+  };
 
   // Filtering characters
   const filteredChars = CHARACTERS.filter((char) => {
@@ -43,6 +80,15 @@ export function RosterSelect({
   });
 
   const handleCardClick = (char) => {
+    const conflict = getConflictInfo(char);
+    if (conflict.isBlocked) {
+      arcadeAudio.playDeselect();
+      setConflictToast(conflict.reason);
+      setTimeout(() => setConflictToast(null), 4500);
+      return;
+    }
+
+    setConflictToast(null);
     arcadeAudio.playSelect();
     onSelectCharacter(char, activeTarget.team, activeTarget.slot);
 
@@ -52,7 +98,6 @@ export function RosterSelect({
       if (nextP1 !== -1) {
         setActiveTarget({ team: 1, slot: nextP1 });
       } else {
-        // Move to P2 first empty
         const nextP2 = team2.findIndex((c) => !c);
         if (nextP2 !== -1) {
           setActiveTarget({ team: 2, slot: nextP2 });
@@ -107,20 +152,20 @@ export function RosterSelect({
           background: char
             ? 'linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(9, 10, 15, 0.95) 100%)'
             : isTarget
-              ? isP1
-                ? 'rgba(59, 130, 246, 0.12)'
-                : 'rgba(239, 68, 68, 0.12)'
-              : 'rgba(10, 12, 18, 0.6)',
+            ? isP1
+              ? 'rgba(59, 130, 246, 0.12)'
+              : 'rgba(239, 68, 68, 0.12)'
+            : 'rgba(10, 12, 18, 0.6)',
           border: isTarget
             ? `2px solid ${isP1 ? '#60a5fa' : '#f87171'}`
             : char
-              ? `1px solid ${char.color || teamAccent}`
-              : '1px dashed rgba(255, 255, 255, 0.18)',
+            ? `1px solid ${char.color || teamAccent}`
+            : '1px dashed rgba(255, 255, 255, 0.18)',
           boxShadow: isTarget
             ? `0 0 20px ${isP1 ? 'rgba(59, 130, 246, 0.45)' : 'rgba(239, 68, 68, 0.45)'}`
             : char
-              ? `0 4px 15px rgba(0, 0, 0, 0.5)`
-              : 'none',
+            ? `0 4px 15px rgba(0, 0, 0, 0.5)`
+            : 'none',
           transition: 'all 0.2s ease',
         }}
       >
@@ -322,6 +367,36 @@ export function RosterSelect({
 
   return (
     <section id="simulator" style={{ padding: '3rem 0', position: 'relative' }}>
+      {/* Injected CSS to enforce custom P1 / P2 cursor on hover and switch to SELECT on left-click */}
+      <style>{`
+        .roster-card.p1-turn-cursor {
+          cursor: url("${UI_ICONS.p1Cursor}") 14 14, pointer !important;
+        }
+        .roster-card.p1-turn-cursor:active,
+        .roster-card.p1-turn-cursor.clicking {
+          cursor: url("${UI_ICONS.p1CursorSelect}") 14 14, pointer !important;
+        }
+
+        .roster-card.p2-turn-cursor {
+          cursor: url("${UI_ICONS.p2Cursor}") 14 14, pointer !important;
+        }
+        .roster-card.p2-turn-cursor:active,
+        .roster-card.p2-turn-cursor.clicking {
+          cursor: url("${UI_ICONS.p2CursorSelect}") 14 14, pointer !important;
+        }
+
+        .roster-card.is-blocked {
+          cursor: not-allowed !important;
+          opacity: 0.36 !important;
+          filter: grayscale(80%) !important;
+        }
+        .roster-card.is-blocked:hover {
+          transform: none !important;
+          border-color: rgba(239, 68, 68, 0.5) !important;
+          box-shadow: none !important;
+        }
+      `}</style>
+
       <div className="kof-container">
         {/* Section Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
@@ -333,8 +408,8 @@ export function RosterSelect({
           <h2 className="font-arcade" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.8rem)', color: '#fff', lineHeight: 1 }}>
             ARMADO DE EQUIPOS 1P VS 2P
           </h2>
-          <p style={{ color: '#94a3b8', maxWidth: '750px', margin: '0 auto', fontSize: '1rem' }}>
-            Haz click en cualquier <strong>recuadro vacío</strong> de tu equipo o del rival, y luego pulsa sobre la <strong>imagen del personaje</strong> en el roster para asignarlo.
+          <p style={{ color: '#94a3b8', maxWidth: '780px', margin: '0 auto', fontSize: '1rem' }}>
+            Haz click en cualquier <strong>recuadro vacío</strong> de tu equipo o del rival, y luego pulsa sobre la <strong>imagen del personaje</strong> en el roster para asignarlo. El cursor cambiará al cursor oficial de <strong>1P</strong> o <strong>2P</strong>, y se activará en modo <em>SELECT</em> al hacer click.
           </p>
         </div>
 
@@ -384,7 +459,7 @@ export function RosterSelect({
                 arcadeAudio.playSelect();
                 onRandomize();
               }}
-              title="Llenar ambos equipos con luchadores aleatorios"
+              title="Llenar ambos equipos con luchadores aleatorios (respetando reglas de contraparte)"
             >
               <img src={UI_ICONS.random} alt="Random" style={{ width: '16px', height: '16px', imageRendering: 'pixelated' }} />
               <span>Aleatorio</span>
@@ -405,6 +480,37 @@ export function RosterSelect({
             </button>
           </div>
         </div>
+
+        {/* Conflict Toast Alert Banner */}
+        {conflictToast && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.25) 0%, rgba(185, 28, 28, 0.15) 100%)',
+            border: '1px solid #ef4444',
+            borderRadius: '8px',
+            padding: '0.85rem 1.25rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            boxShadow: '0 0 20px rgba(239, 68, 68, 0.35)',
+            animation: 'fadeIn 0.2s ease-in'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <ShieldAlert size={22} color="#f87171" style={{ flexShrink: 0 }} />
+              <div style={{ fontSize: '0.88rem', color: '#fecaca', lineHeight: 1.4 }}>
+                <strong style={{ color: '#fff' }}>RESTRICCIÓN DE TORNEO:</strong> {conflictToast}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConflictToast(null)}
+              style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Team 1 vs Team 2 Empty/Filled Slot Displays */}
         <div style={{
@@ -429,7 +535,7 @@ export function RosterSelect({
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <img src={UI_ICONS.p1Cursor} alt="P1" style={{ width: '18px', height: '18px', imageRendering: 'pixelated' }} />
+                <img src={UI_ICONS.p1Cursor} alt="P1" style={{ width: '20px', height: '20px', imageRendering: 'pixelated' }} />
                 <span className="font-arcade" style={{ fontSize: '1.8rem', color: '#60a5fa', lineHeight: 1 }}>1P TEAM</span>
                 <span className="badge-cyan" style={{ fontSize: '0.7rem' }}>TU EQUIPO ({p1FilledCount}/3)</span>
               </div>
@@ -475,7 +581,7 @@ export function RosterSelect({
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <img src={UI_ICONS.p2Cursor} alt="P2" style={{ width: '18px', height: '18px', imageRendering: 'pixelated' }} />
+                <img src={UI_ICONS.p2Cursor} alt="P2" style={{ width: '20px', height: '20px', imageRendering: 'pixelated' }} />
                 <span className="font-arcade" style={{ fontSize: '1.8rem', color: '#f87171', lineHeight: 1 }}>2P TEAM</span>
                 <span className="badge-arcade" style={{ fontSize: '0.7rem' }}>RIVAL ({p2FilledCount}/3)</span>
               </div>
@@ -515,7 +621,7 @@ export function RosterSelect({
         }}>
           {/* Roster Container */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            {/* Filter Tabs */}
+            {/* Filter Tabs & Drafting Target Status */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -557,35 +663,48 @@ export function RosterSelect({
                 color: '#cbd5e1',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '8px'
               }}>
                 <img
                   src={activeTarget.team === 1 ? UI_ICONS.p1Cursor : UI_ICONS.p2Cursor}
                   alt=""
-                  style={{ width: '14px', height: '14px', imageRendering: 'pixelated' }}
+                  style={{ width: '16px', height: '16px', imageRendering: 'pixelated' }}
                 />
-                <span>Próximo personaje se asignará a:</span>
+                <span>Eligiendo con cursor <strong style={{ color: activeTarget.team === 1 ? '#60a5fa' : '#f87171' }}>{activeTarget.team === 1 ? '1P' : '2P'}</strong> para:</span>
                 <strong style={{ color: activeTarget.team === 1 ? '#60a5fa' : '#f87171' }}>
-                  {activeTarget.team === 1 ? '1P' : '2P'} {slotLabels[activeTarget.slot].title}
+                  {slotLabels[activeTarget.slot].title}
                 </strong>
               </div>
             </div>
 
-            {/* Grid of Characters with Authentic Portrait PNGs */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
-              gap: '0.65rem'
-            }}>
+            {/* Grid of Characters with Custom Cursors and Counterpart Block */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+                gap: '0.65rem'
+              }}
+              onMouseDown={() => setIsMouseDown(true)}
+              onMouseUp={() => setIsMouseDown(false)}
+              onMouseLeave={() => setIsMouseDown(false)}
+            >
               {filteredChars.map((char) => {
                 const isSelectedInP1 = team1.some((c) => c?.id === char.id);
                 const isSelectedInP2 = team2.some((c) => c?.id === char.id);
                 const charImg = CHARACTER_IMAGES[char.id];
+                const conflict = getConflictInfo(char);
+
+                // Determine cursor class
+                const cursorClass = conflict.isBlocked
+                  ? 'is-blocked'
+                  : activeTarget.team === 1
+                  ? 'p1-turn-cursor'
+                  : 'p2-turn-cursor';
 
                 return (
                   <div
                     key={char.id}
-                    className={`roster-card ${isSelectedInP1 ? 'selected-p1' : ''} ${isSelectedInP2 ? 'selected-p2' : ''}`}
+                    className={`roster-card ${cursorClass} ${isMouseDown ? 'clicking' : ''} ${isSelectedInP1 ? 'selected-p1' : ''} ${isSelectedInP2 ? 'selected-p2' : ''}`}
                     style={{
                       '--char-color': char.color,
                       '--char-glow': `${char.color}88`,
@@ -594,18 +713,54 @@ export function RosterSelect({
                       background: isSelectedInP1
                         ? 'rgba(30, 58, 138, 0.4)'
                         : isSelectedInP2
-                          ? 'rgba(153, 27, 27, 0.4)'
-                          : 'rgba(13, 15, 24, 0.85)',
+                        ? 'rgba(153, 27, 27, 0.4)'
+                        : conflict.isBlocked
+                        ? 'rgba(10, 10, 15, 0.5)'
+                        : 'rgba(13, 15, 24, 0.85)',
                       border: isSelectedInP1
                         ? '2px solid #3b82f6'
                         : isSelectedInP2
-                          ? '2px solid #ef4444'
-                          : '1px solid rgba(255, 255, 255, 0.1)',
-                      position: 'relative'
+                        ? '2px solid #ef4444'
+                        : conflict.isBlocked
+                        ? '1px solid rgba(239, 68, 68, 0.3)'
+                        : '1px solid rgba(255, 255, 255, 0.1)',
+                      position: 'relative',
                     }}
                     onClick={() => handleCardClick(char)}
                     onMouseEnter={() => handleCardHover(char)}
+                    title={conflict.isBlocked ? conflict.reason : `${char.name} (${char.tier})`}
                   >
+                    {/* Visual Retro Player Cursor Indicator floating on hovered card */}
+                    {hoveredChar?.id === char.id && !conflict.isBlocked && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        left: '-8px',
+                        zIndex: 25,
+                        pointerEvents: 'none',
+                        animation: 'bounceCursor 0.4s infinite alternate ease-in-out'
+                      }}>
+                        <img
+                          src={
+                            isMouseDown
+                              ? activeTarget.team === 1
+                                ? UI_ICONS.p1CursorSelect
+                                : UI_ICONS.p2CursorSelect
+                              : activeTarget.team === 1
+                              ? UI_ICONS.p1Cursor
+                              : UI_ICONS.p2Cursor
+                          }
+                          alt="Cursor"
+                          style={{
+                            width: '26px',
+                            height: '26px',
+                            imageRendering: 'pixelated',
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.9))'
+                          }}
+                        />
+                      </div>
+                    )}
+
                     {/* Character Sprite Image */}
                     <div style={{
                       width: '52px',
@@ -639,7 +794,7 @@ export function RosterSelect({
                     <span className="font-tech" style={{
                       fontSize: '0.78rem',
                       fontWeight: 700,
-                      color: '#f8fafc',
+                      color: conflict.isBlocked ? '#94a3b8' : '#f8fafc',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -649,18 +804,30 @@ export function RosterSelect({
                       {char.name.split(' ')[0]}
                     </span>
 
-                    {/* Tier Badge */}
-                    <span style={{
-                      fontSize: '0.62rem',
-                      fontFamily: 'var(--font-tech)',
-                      color: char.color,
-                      fontWeight: 700,
-                      marginTop: '1px'
-                    }}>
-                      {char.tier}
-                    </span>
+                    {/* Tier or Conflict Badge */}
+                    {conflict.isBlocked ? (
+                      <span style={{
+                        fontSize: '0.58rem',
+                        fontFamily: 'var(--font-tech)',
+                        color: '#f87171',
+                        fontWeight: 700,
+                        marginTop: '1px'
+                      }}>
+                        {conflict.badge}
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: '0.62rem',
+                        fontFamily: 'var(--font-tech)',
+                        color: char.color,
+                        fontWeight: 700,
+                        marginTop: '1px'
+                      }}>
+                        {char.tier}
+                      </span>
+                    )}
 
-                    {/* Selected Badge Overlays */}
+                    {/* Selected Indicator Tags */}
                     {isSelectedInP1 && (
                       <span style={{
                         position: 'absolute',
@@ -748,6 +915,27 @@ export function RosterSelect({
                   </div>
                 </div>
               </div>
+
+              {/* Counterpart info if Orochi character */}
+              {OROCHI_COUNTERPARTS[hoveredChar.id] && (
+                <div style={{
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  borderRadius: '6px',
+                  padding: '0.5rem 0.75rem',
+                  fontSize: '0.78rem',
+                  color: '#e9d5ff',
+                  marginBottom: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <AlertTriangle size={14} color="#c084fc" />
+                  <span>
+                    Tiene contraparte ({CHARACTERS.find((c) => c.id === OROCHI_COUNTERPARTS[hoveredChar.id])?.name}). No seleccionables juntos.
+                  </span>
+                </div>
+              )}
 
               {/* Signature move & recommended slot */}
               <div style={{

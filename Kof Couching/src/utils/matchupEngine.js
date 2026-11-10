@@ -111,8 +111,8 @@ export function calculateSlotMatchup(char1, char2, slotIndex) {
       finalP1Rate >= 55
         ? `Ventaja favorable para ${char1.name} (${finalP1Rate}%). Mantén el control con pokes y castiga las entradas forzadas de ${char2.name}.`
         : finalP1Rate <= 45
-          ? `Matchup complicado para ${char1.name} (${finalP1Rate}%). Juega paciente, evita saltos telegrafiados y prioriza defensas sólidas.`
-          : `Duelo 5-5 sumamente parejo (${finalP1Rate}% - ${finalP2Rate}%). Se definirá por quién controle mejor los safe hops y el timing de reversals.`,
+        ? `Matchup complicado para ${char1.name} (${finalP1Rate}%). Juega paciente, evita saltos telegrafiados y prioriza defensas sólidas.`
+        : `Duelo 5-5 sumamente parejo (${finalP1Rate}% - ${finalP2Rate}%). Se definirá por quién controle mejor los safe hops y el timing de reversals.`,
   };
 }
 
@@ -171,6 +171,11 @@ export function evaluateTeamBattle(team1, team2) {
     return null;
   }
 
+  // Ensure all characters are selected
+  if (team1.some((c) => !c) || team2.some((c) => !c)) {
+    return null;
+  }
+
   // 1. Calculate each slot
   const slotMatchups = team1.map((c1, idx) => calculateSlotMatchup(c1, team2[idx], idx));
 
@@ -180,9 +185,6 @@ export function evaluateTeamBattle(team1, team2) {
 
   // 3. Weight overall win rate:
   // Point: 30%, Mid: 30%, Anchor: 40% (anchor clutch matters more in KOF 98)
-  if (!slotMatchups[0] || !slotMatchups[1] || !slotMatchups[2]) {
-    return 0;
-  }
   const weightedBase =
     slotMatchups[0].p1Rate * 0.3 +
     slotMatchups[1].p1Rate * 0.3 +
@@ -221,15 +223,15 @@ export function evaluateTeamBattle(team1, team2) {
   const anchor2 = team2[2];
   const anchorComparison =
     anchor1.stats.damage + (anchor1.id === 'daimon' ? 10 : 0) >=
-      anchor2.stats.damage + (anchor2.id === 'daimon' ? 10 : 0)
+    anchor2.stats.damage + (anchor2.id === 'daimon' ? 10 : 0)
       ? {
-        favors: 'team1',
-        text: `${anchor1.name} tiene un potencial de clutch superior en la última línea gracias a su daño con 3 barras.`,
-      }
+          favors: 'team1',
+          text: `${anchor1.name} tiene un potencial de clutch superior en la última línea gracias a su daño con 3 barras.`,
+        }
       : {
-        favors: 'team2',
-        text: `${anchor2.name} tiene mayor capacidad de remontada en situación de Anchor rival si llega con medidor completo.`,
-      };
+          favors: 'team2',
+          text: `${anchor2.name} tiene mayor capacidad de remontada en situación de Anchor rival si llega con medidor completo.`,
+        };
 
   // Strategic Coaching Playbook
   const coachingPlaybook = [];
@@ -281,3 +283,49 @@ export function evaluateTeamBattle(team1, team2) {
   };
 }
 
+// Finds the permutation of 3 characters with the optimal mood synergy
+export function findBestOrder(team) {
+  if (!team || team.filter(Boolean).length < 2) return team;
+  const chars = team.filter(Boolean);
+  if (chars.length === 2) {
+    const perm1 = [chars[0], chars[1]];
+    const perm2 = [chars[1], chars[0]];
+    const s1 = calculateTeamMood(perm1)?.totalSynergyScore || 0;
+    const s2 = calculateTeamMood(perm2)?.totalSynergyScore || 0;
+    return s2 > s1 ? [chars[1], chars[0], null] : [chars[0], chars[1], null];
+  }
+  if (chars.length === 3) {
+    const permutations = [
+      [chars[0], chars[1], chars[2]],
+      [chars[0], chars[2], chars[1]],
+      [chars[1], chars[0], chars[2]],
+      [chars[1], chars[2], chars[0]],
+      [chars[2], chars[0], chars[1]],
+      [chars[2], chars[1], chars[0]],
+    ];
+
+    let bestPerm = permutations[0];
+    let bestScore = -999;
+
+    permutations.forEach((perm) => {
+      const mood = calculateTeamMood(perm);
+      if (mood) {
+        let extraWeight = 0;
+        // Anchor preference for Daimon
+        if (perm[0].id === 'daimon') extraWeight -= 4;
+        if (perm[2].id === 'daimon') extraWeight += 4;
+        // Battery preference for Chris at point
+        if (perm[0].id === 'chris') extraWeight += 3;
+
+        const total = mood.totalSynergyScore * 10 + extraWeight;
+        if (total > bestScore) {
+          bestScore = total;
+          bestPerm = perm;
+        }
+      }
+    });
+
+    return bestPerm;
+  }
+  return team;
+}
