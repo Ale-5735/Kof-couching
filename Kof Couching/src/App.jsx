@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CHARACTERS, TEAM_PRESETS, OROCHI_COUNTERPARTS } from './data/characters';
 import { evaluateTeamBattle } from './utils/matchupEngine';
+import { getLoggedInUser, logout, initAuthStorage } from './utils/auth';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { ProtectedTeaser } from './components/ProtectedTeaser';
 import { RosterSelect } from './components/RosterSelect';
 import { MatchupComparison } from './components/MatchupComparison';
 import { FinalVerdict } from './components/FinalVerdict';
@@ -10,10 +12,20 @@ import { CoachingPrograms } from './components/CoachingPrograms';
 import { MechanicsGuide } from './components/MechanicsGuide';
 import { TestimonialsFAQ } from './components/TestimonialsFAQ';
 import { BookingModal } from './components/BookingModal';
+import { AuthModal } from './components/AuthModal';
 import { Footer } from './components/Footer';
 
 function App() {
-  // Recuadros P1 Team y P2 Team inician vacíos para que el usuario los arme eligiendo las imágenes de los pj
+  // Authentication state
+  const [currentUser, setCurrentUser] = useState(() => {
+    initAuthStorage();
+    return getLoggedInUser();
+  });
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register'
+
+  // Team slots (empty initially so user can build teams)
   const [team1, setTeam1] = useState([null, null, null]);
   const [team2, setTeam2] = useState([null, null, null]);
 
@@ -24,6 +36,25 @@ function App() {
   const battleEvaluation = useMemo(() => {
     return evaluateTeamBattle(team1, team2);
   }, [team1, team2]);
+
+  const handleOpenLogin = () => {
+    setAuthModalMode('login');
+    setAuthModalOpen(true);
+  };
+
+  const handleOpenRegister = () => {
+    setAuthModalMode('register');
+    setAuthModalOpen(true);
+  };
+
+  const handleAuthSuccess = (user) => {
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setCurrentUser(null);
+  };
 
   // Assign character to target team and specific slot
   const handleSelectCharacter = (char, targetTeamNum, targetSlotIdx) => {
@@ -93,11 +124,19 @@ function App() {
   };
 
   const handleOpenBookingWithPlan = (plan) => {
+    if (!currentUser) {
+      handleOpenLogin();
+      return;
+    }
     setSelectedPlanForBooking(plan);
     setBookingModalOpen(true);
   };
 
   const handleScrollToSimulator = () => {
+    if (!currentUser) {
+      handleOpenLogin();
+      return;
+    }
     const el = document.getElementById('simulator');
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
@@ -109,52 +148,84 @@ function App() {
       {/* Scanline CRT overlay */}
       <div className="scanline-overlay" />
 
-      {/* Navigation */}
-      <Navbar onOpenBooking={() => setBookingModalOpen(true)} />
+      {/* Navigation with Auth actions */}
+      <Navbar
+        currentUser={currentUser}
+        onOpenLogin={handleOpenLogin}
+        onOpenRegister={handleOpenRegister}
+        onLogout={handleLogout}
+        onOpenBooking={() => setBookingModalOpen(true)}
+      />
 
       {/* Hero Section */}
       <Hero
+        currentUser={currentUser}
         onScrollToSimulator={handleScrollToSimulator}
-        onOpenBooking={() => setBookingModalOpen(true)}
+        onOpenBooking={() => {
+          if (!currentUser) handleOpenLogin();
+          else setBookingModalOpen(true);
+        }}
+        onOpenLogin={handleOpenLogin}
+        onOpenRegister={handleOpenRegister}
       />
 
-      {/* Main Roster & Team Selector (Recuadros Vacíos que se llenan con imágenes de los personajes) */}
-      <RosterSelect
-        team1={team1}
-        team2={team2}
-        onSelectCharacter={handleSelectCharacter}
-        onRemoveCharacter={handleRemoveCharacter}
-        onApplyPreset={handleApplyPreset}
-        onRandomize={handleRandomize}
-        onClearTeams={handleClearTeams}
-      />
+      {/* PROTECTED CONTENT: Accessible only when user is logged in */}
+      {currentUser ? (
+        <>
+          {/* Main Roster & Team Selector (Interactive Matchup Simulator) */}
+          <RosterSelect
+            team1={team1}
+            team2={team2}
+            onSelectCharacter={handleSelectCharacter}
+            onRemoveCharacter={handleRemoveCharacter}
+            onApplyPreset={handleApplyPreset}
+            onRandomize={handleRandomize}
+            onClearTeams={handleClearTeams}
+          />
 
-      {/* Slot-by-Slot Matchup Comparison (Point, Mid, Anchor Breakdown) */}
-      <MatchupComparison
-        evaluation={battleEvaluation}
-        team1={team1}
-        team2={team2}
-        onOpenBooking={() => setBookingModalOpen(true)}
-      />
+          {/* Slot-by-Slot Matchup Comparison (Point, Mid, Anchor Breakdown) */}
+          <MatchupComparison
+            evaluation={battleEvaluation}
+            team1={team1}
+            team2={team2}
+            onOpenBooking={() => setBookingModalOpen(true)}
+          />
 
-      {/* Final Verdict: Expected Overall Team Match Outcome & Mood System */}
-      <FinalVerdict
-        evaluation={battleEvaluation}
-        team1={team1}
-        team2={team2}
-        onOpenBooking={() => setBookingModalOpen(true)}
-      />
+          {/* Final Verdict: Expected Overall Team Match Outcome & Mood System */}
+          <FinalVerdict
+            evaluation={battleEvaluation}
+            team1={team1}
+            team2={team2}
+            onOpenBooking={() => setBookingModalOpen(true)}
+          />
 
-      {/* Coaching Programs / Mentorship */}
-      <CoachingPrograms onSelectPlan={handleOpenBookingWithPlan} />
+          {/* Coaching Programs / Mentorship */}
+          <CoachingPrograms onSelectPlan={handleOpenBookingWithPlan} />
+        </>
+      ) : (
+        /* Protected Teaser Gate shown when user is NOT logged in */
+        <ProtectedTeaser
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={handleOpenRegister}
+        />
+      )}
 
+      {/* Public Landing Page Content (Always visible) */}
       {/* Frame Data & Mechanics Guide */}
       <MechanicsGuide />
 
       {/* Student Testimonials & FAQ */}
       <TestimonialsFAQ />
 
-      {/* Booking Modal */}
+      {/* Login & Register Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
+        onAuthSuccess={handleAuthSuccess}
+      />
+
+      {/* Booking Modal (Only accessible for logged in users) */}
       <BookingModal
         isOpen={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}

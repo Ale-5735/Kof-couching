@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Flame, Swords, Calendar, HelpCircle, BookOpen } from 'lucide-react';
+import { Volume2, VolumeX, Flame, Swords, Calendar, HelpCircle, BookOpen, LogIn, UserPlus, LogOut, Lock, User } from 'lucide-react';
 import { arcadeAudio } from '../utils/audio';
+import { CHARACTER_IMAGES } from '../assets/characterImages';
 
-export function Navbar({ onOpenBooking }) {
+export function Navbar({
+  currentUser,
+  onOpenLogin,
+  onOpenRegister,
+  onLogout,
+  onOpenBooking
+}) {
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   const handleToggleSound = () => {
@@ -16,7 +23,7 @@ export function Navbar({ onOpenBooking }) {
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      background: 'rgba(6, 7, 10, 0.88)',
+      background: 'rgba(6, 7, 10, 0.92)',
       backdropFilter: 'blur(16px)',
       borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
       padding: '0.85rem 0'
@@ -80,30 +87,82 @@ export function Navbar({ onOpenBooking }) {
           gap: '1.5rem',
           flexWrap: 'wrap'
         }}>
-          <a href="#simulator" className="font-tech" style={{
-            color: '#cbd5e1',
-            textDecoration: 'none',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            transition: 'color 0.2s'
-          }} onMouseEnter={() => arcadeAudio.playHover()}>
-            <Swords size={16} color="#38bdf8" />
-            <span>Simulador de Matchups</span>
-          </a>
+          {currentUser ? (
+            <>
+              <a href="#simulator" className="font-tech" style={{
+                color: '#cbd5e1',
+                textDecoration: 'none',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'color 0.2s'
+              }} onMouseEnter={() => arcadeAudio.playHover()}>
+                <Swords size={16} color="#38bdf8" />
+                <span>Simulador de Matchups</span>
+              </a>
 
-          <a href="#coaching" className="font-tech" style={{
-            color: '#cbd5e1',
-            textDecoration: 'none',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem'
-          }} onMouseEnter={() => arcadeAudio.playHover()}>
-            <Calendar size={16} color="#f59e0b" />
-            <span>Planes de Coaching</span>
-          </a>
+              <a href="#coaching" className="font-tech" style={{
+                color: '#cbd5e1',
+                textDecoration: 'none',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem'
+              }} onMouseEnter={() => arcadeAudio.playHover()}>
+                <Calendar size={16} color="#f59e0b" />
+                <span>Planes de Coaching</span>
+              </a>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playHover();
+                  onOpenLogin();
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-tech)'
+                }}
+                title="Requiere iniciar sesión"
+              >
+                <Lock size={14} color="#f59e0b" />
+                <span>Simulador (Protegido)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playHover();
+                  onOpenLogin();
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-tech)'
+                }}
+                title="Requiere iniciar sesión"
+              >
+                <Lock size={14} color="#f59e0b" />
+                <span>Planes (Protegido)</span>
+              </button>
+            </>
+          )}
 
           <a href="#mechanics" className="font-tech" style={{
             color: '#cbd5e1',
@@ -130,7 +189,7 @@ export function Navbar({ onOpenBooking }) {
           </a>
         </div>
 
-        {/* Controls & CTA */}
+        {/* Controls, Auth & CTA */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -158,21 +217,108 @@ export function Navbar({ onOpenBooking }) {
             {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
 
-          {/* Book Button */}
-          <button
-            type="button"
-            className="btn-snk"
-            style={{ padding: '0.5rem 1.2rem', fontSize: '1.15rem' }}
-            onClick={() => {
-              arcadeAudio.playCoin();
-              onOpenBooking();
-            }}
-          >
-            <span>Reservar Clase</span>
-          </button>
+          {/* Conditional Auth User Profile vs Login/Register */}
+          {currentUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              {/* User Profile Pill */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.35)',
+                borderRadius: '8px',
+                padding: '0.35rem 0.75rem'
+              }}>
+                <div style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '4px',
+                  background: 'rgba(0,0,0,0.4)',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {CHARACTER_IMAGES[currentUser.mainChar] ? (
+                    <img
+                      src={CHARACTER_IMAGES[currentUser.mainChar]}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                    />
+                  ) : (
+                    <User size={14} color="#60a5fa" />
+                  )}
+                </div>
+                <div>
+                  <div className="font-tech" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+                    {currentUser.gamertag}
+                  </div>
+                  <div style={{ fontSize: '0.65rem', color: '#60a5fa' }}>
+                    {currentUser.rank || 'Miembro Pro'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Book button only for logged in members */}
+              <button
+                type="button"
+                className="btn-snk"
+                style={{ padding: '0.45rem 1rem', fontSize: '1.05rem' }}
+                onClick={() => {
+                  arcadeAudio.playCoin();
+                  onOpenBooking();
+                }}
+              >
+                <span>Reservar Clase</span>
+              </button>
+
+              {/* Logout button */}
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playDeselect();
+                  onLogout();
+                }}
+                className="btn-ghost"
+                style={{ padding: '0.45rem 0.65rem', color: '#f87171' }}
+                title="Cerrar Sesión"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            /* Logged Out Buttons: Iniciar Sesión & Registro */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ fontSize: '0.85rem', padding: '0.45rem 0.9rem' }}
+                onClick={() => {
+                  arcadeAudio.playSelect();
+                  onOpenLogin();
+                }}
+              >
+                <LogIn size={15} />
+                <span>Iniciar Sesión</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-snk btn-snk-gold"
+                style={{ fontSize: '1.05rem', padding: '0.45rem 1rem' }}
+                onClick={() => {
+                  arcadeAudio.playSelect();
+                  onOpenRegister();
+                }}
+              >
+                <UserPlus size={16} />
+                <span>Registrarse</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </nav>
   );
 }
-

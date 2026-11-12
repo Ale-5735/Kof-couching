@@ -1,8 +1,8 @@
 import React from 'react';
-import { Flame, Trophy, Target, Zap, Shield, Play, ArrowDown } from 'lucide-react';
+import { Flame, Trophy, Target, Zap, Shield, Play, ArrowDown, LogIn, UserPlus, Lock } from 'lucide-react';
 import { arcadeAudio } from '../utils/audio';
 
-export function Hero({ onScrollToSimulator, onOpenBooking }) {
+export function Hero({ currentUser, onScrollToSimulator, onOpenBooking, onOpenLogin, onOpenRegister }) {
   return (
     <section style={{
       position: 'relative',
@@ -67,7 +67,7 @@ export function Hero({ onScrollToSimulator, onOpenBooking }) {
           la compatibilidad de medidor (<span style={{ color: '#34d399' }}>Mood System</span>) y recibe recomendaciones de frame data, safe hops y guard cancels.
         </p>
 
-        {/* CTA Button Group */}
+        {/* CTA Button Group: Conditional based on Authentication */}
         <div style={{
           display: 'flex',
           justifyContent: 'center',
@@ -76,30 +76,63 @@ export function Hero({ onScrollToSimulator, onOpenBooking }) {
           flexWrap: 'wrap',
           marginBottom: '3.5rem'
         }}>
-          <button
-            type="button"
-            className="btn-snk"
-            onClick={() => {
-              arcadeAudio.playFight();
-              onScrollToSimulator();
-            }}
-          >
-            <Zap size={22} />
-            <span>Configurar Equipos en el Simulador</span>
-          </button>
+          {currentUser ? (
+            /* Logged In: Immediate Access Enabled */
+            <>
+              <button
+                type="button"
+                className="btn-snk"
+                onClick={() => {
+                  arcadeAudio.playFight();
+                  onScrollToSimulator();
+                }}
+              >
+                <Zap size={22} />
+                <span>Configurar Equipos en el Simulador</span>
+              </button>
 
-          <button
-            type="button"
-            className="btn-ghost"
-            style={{ fontSize: '1.1rem', padding: '0.85rem 1.8rem' }}
-            onClick={() => {
-              arcadeAudio.playCoin();
-              onOpenBooking();
-            }}
-          >
-            <Trophy size={18} color="#f59e0b" />
-            <span>Ver Mentorías 1-a-1</span>
-          </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ fontSize: '1.1rem', padding: '0.85rem 1.8rem' }}
+                onClick={() => {
+                  arcadeAudio.playCoin();
+                  onOpenBooking();
+                }}
+              >
+                <Trophy size={18} color="#f59e0b" />
+                <span>Ver Mentorías 1-a-1</span>
+              </button>
+            </>
+          ) : (
+            /* Logged Out: Immediate access removed, prompts login/register */
+            <>
+              <button
+                type="button"
+                className="btn-snk"
+                onClick={() => {
+                  arcadeAudio.playSelect();
+                  onOpenLogin();
+                }}
+              >
+                <LogIn size={20} />
+                <span>Iniciar Sesión para Acceder</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-snk btn-snk-gold"
+                style={{ fontSize: '1.25rem', padding: '0.75rem 1.8rem' }}
+                onClick={() => {
+                  arcadeAudio.playSelect();
+                  onOpenRegister();
+                }}
+              >
+                <UserPlus size={20} />
+                <span>Registrarse Gratis</span>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Quick Competitive Proof Badges */}
@@ -183,4 +216,3 @@ export function Hero({ onScrollToSimulator, onOpenBooking }) {
     </section>
   );
 }
-
