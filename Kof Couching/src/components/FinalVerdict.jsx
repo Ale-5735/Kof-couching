@@ -428,8 +428,8 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
               </p>
               <button
                 type="button"
-                className="btn-snk"
-                style={{ padding: '0.6rem 1.4rem', fontSize: '1.15rem' }}
+                className="btn-advanced"
+                style={{ padding: '0.6rem 1.6rem', fontSize: '1.2rem' }}
                 onClick={() => {
                   arcadeAudio.playCoin();
                   onOpenBooking();

@@ -261,10 +261,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
 
             <button
               type="submit"
-              className="btn-snk"
+              className="btn-advanced"
               style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', fontSize: '1.25rem' }}
             >
-              <LogIn size={18} />
+              <LogIn size={18} color="#ffe066" />
               <span>INGRESAR AHORA</span>
             </button>
 
@@ -281,16 +281,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
               <button
                 type="button"
                 onClick={handleQuickDemoLogin}
-                className="btn-ghost"
+                className="btn-mode-select"
                 style={{
                   width: '100%',
-                  fontSize: '0.85rem',
-                  padding: '0.5rem',
-                  borderColor: 'rgba(245, 158, 11, 0.4)',
-                  color: '#fbbf24'
+                  fontSize: '0.95rem',
+                  padding: '0.5rem'
                 }}
               >
-                <Sparkles size={14} color="#f59e0b" />
+                <Sparkles size={14} color="#00f0ff" />
                 <span>Acceder como Demo (KOF_Master98)</span>
               </button>
             </div>
@@ -410,10 +408,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
 
             <button
               type="submit"
-              className="btn-snk btn-snk-gold"
+              className="btn-extra"
               style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', fontSize: '1.25rem' }}
             >
-              <UserPlus size={18} />
+              <UserPlus size={18} color="#86efac" />
               <span>CREAR CUENTA & ACCEDER</span>
             </button>
           </form>

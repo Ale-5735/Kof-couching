@@ -170,7 +170,7 @@ export function CoachingPrograms({ onSelectPlan }) {
               {/* Action Button */}
               <button
                 type="button"
-                className={plan.popular ? 'btn-snk' : 'btn-ghost'}
+                className={plan.popular ? 'btn-advanced' : 'btn-extra'}
                 style={{ width: '100%', justifyContent: 'center' }}
                 onClick={() => {
                   arcadeAudio.playCoin();

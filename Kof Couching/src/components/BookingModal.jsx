@@ -192,10 +192,10 @@ export function BookingModal({ isOpen, onClose, defaultTeam, selectedPlan }) {
 
               <button
                 type="submit"
-                className="btn-snk"
+                className="btn-advanced"
                 style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', fontSize: '1.25rem' }}
               >
-                <Send size={18} />
+                <Send size={18} color="#ffe066" />
                 <span>CONFIRMAR SOLICITUD DE CLASE</span>
               </button>
             </form>
@@ -225,7 +225,7 @@ export function BookingModal({ isOpen, onClose, defaultTeam, selectedPlan }) {
 
             <button
               type="button"
-              className="btn-snk"
+              className="btn-advanced"
               style={{ padding: '0.6rem 1.6rem' }}
               onClick={() => {
                 setSubmitted(false);

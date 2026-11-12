@@ -88,12 +88,12 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
             En KOF 98 el orden define el resultado: evaluamos cada choque según el inicio de medidor (0 barras en Point, 1-2 en Mid, 3 en Anchor), la velocidad de safe hops, el control de espacio y las opciones de reversal.
           </p>
 
-          {/* View Toggle: Order vs Full 3x3 Matrix */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+          {/* View Toggle: Order vs Full 3x3 Matrix (Neo Geo Arcade Buttons) */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button
               type="button"
-              className={!showMatrix ? 'btn-snk' : 'btn-ghost'}
-              style={{ fontSize: '0.95rem', padding: '0.5rem 1.25rem' }}
+              className={!showMatrix ? 'btn-advanced' : 'btn-ghost'}
+              style={{ fontSize: '1rem', padding: '0.5rem 1.4rem' }}
               onClick={() => {
                 arcadeAudio.playSelect();
                 setShowMatrix(false);
@@ -105,8 +105,8 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
 
             <button
               type="button"
-              className={showMatrix ? 'btn-snk' : 'btn-ghost'}
-              style={{ fontSize: '0.95rem', padding: '0.5rem 1.25rem' }}
+              className={showMatrix ? 'btn-advanced' : 'btn-ghost'}
+              style={{ fontSize: '1rem', padding: '0.5rem 1.4rem' }}
               onClick={() => {
                 arcadeAudio.playSelect();
                 setShowMatrix(true);

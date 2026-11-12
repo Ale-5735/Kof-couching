@@ -115,37 +115,37 @@ export function ProtectedTeaser({ onOpenLogin, onOpenRegister }) {
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons: ADVANCED vs EXTRA styles */}
           <div style={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            gap: '1rem',
+            gap: '1.25rem',
             flexWrap: 'wrap'
           }}>
             <button
               type="button"
-              className="btn-snk"
-              style={{ fontSize: '1.3rem', padding: '0.75rem 2rem' }}
+              className="btn-advanced"
+              style={{ fontSize: '1.25rem', padding: '0.75rem 2rem' }}
               onClick={() => {
                 arcadeAudio.playSelect();
                 onOpenLogin();
               }}
             >
-              <LogIn size={20} />
+              <LogIn size={20} color="#ffe066" />
               <span>Iniciar Sesión para Desbloquear</span>
             </button>
 
             <button
               type="button"
-              className="btn-snk btn-snk-gold"
-              style={{ fontSize: '1.3rem', padding: '0.75rem 2rem' }}
+              className="btn-extra"
+              style={{ fontSize: '1.25rem', padding: '0.75rem 2rem' }}
               onClick={() => {
                 arcadeAudio.playSelect();
                 onOpenRegister();
               }}
             >
-              <UserPlus size={20} />
+              <UserPlus size={20} color="#86efac" />
               <span>Crear Cuenta Gratis</span>
             </button>
           </div>

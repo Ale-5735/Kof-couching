@@ -263,8 +263,8 @@ export function Navbar({
               {/* Book button only for logged in members */}
               <button
                 type="button"
-                className="btn-snk"
-                style={{ padding: '0.45rem 1rem', fontSize: '1.05rem' }}
+                className="btn-advanced"
+                style={{ padding: '0.4rem 1.2rem', fontSize: '1.05rem' }}
                 onClick={() => {
                   arcadeAudio.playCoin();
                   onOpenBooking();
@@ -281,19 +281,19 @@ export function Navbar({
                   onLogout();
                 }}
                 className="btn-ghost"
-                style={{ padding: '0.45rem 0.65rem', color: '#f87171' }}
+                style={{ padding: '0.4rem 0.65rem', color: '#f87171' }}
                 title="Cerrar Sesión"
               >
                 <LogOut size={16} />
               </button>
             </div>
           ) : (
-            /* Logged Out Buttons: Iniciar Sesión & Registro */
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            /* Logged Out Buttons: Iniciar Sesión (MODE SELECT) & Registro (EXTRA) */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               <button
                 type="button"
-                className="btn-ghost"
-                style={{ fontSize: '0.85rem', padding: '0.45rem 0.9rem' }}
+                className="btn-mode-select"
+                style={{ fontSize: '0.95rem', padding: '0.4rem 1.1rem' }}
                 onClick={() => {
                   arcadeAudio.playSelect();
                   onOpenLogin();
@@ -305,8 +305,8 @@ export function Navbar({
 
               <button
                 type="button"
-                className="btn-snk btn-snk-gold"
-                style={{ fontSize: '1.05rem', padding: '0.45rem 1rem' }}
+                className="btn-extra"
+                style={{ fontSize: '0.95rem', padding: '0.4rem 1.1rem' }}
                 onClick={() => {
                   arcadeAudio.playSelect();
                   onOpenRegister();

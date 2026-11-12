@@ -24,30 +24,31 @@ export function Hero({ currentUser, onScrollToSimulator, onOpenBooking, onOpenLo
       }} />
 
       <div className="kof-container" style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-        {/* Top Arcade Tag */}
-        <div style={{ display: 'inline-flex', marginBottom: '1.25rem' }}>
-          <div className="badge-arcade" style={{ gap: '0.6rem', padding: '0.35rem 0.9rem' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ff2e43', boxShadow: '0 0 8px #ff2e43' }} />
-            <span>FIGHTCADE 2 & NEO GEO MVS TOURNAMENT LAB</span>
+        {/* Top Arcade Tag: Styled like MODE SELECT */}
+        <div style={{ display: 'inline-flex', marginBottom: '1.5rem' }}>
+          <div className="btn-mode-select" style={{ fontSize: '1rem', padding: '0.4rem 1.4rem', pointerEvents: 'none', cursor: 'default' }}>
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00f0ff', boxShadow: '0 0 10px #00f0ff', marginRight: '0.3rem' }} />
+            <span>MODE SELECT • FIGHTCADE 2 & NEO GEO MVS LAB</span>
           </div>
         </div>
 
         {/* Hero Title */}
-        <h1 className="font-arcade" style={{
+        <h1 className="font-neogeo" style={{
           fontSize: 'clamp(2.8rem, 6.5vw, 5.2rem)',
           lineHeight: 0.95,
-          fontWeight: 700,
+          fontWeight: 900,
+          fontStyle: 'italic',
           color: '#fff',
           maxWidth: '1050px',
           margin: '0 auto 1.25rem auto',
-          textShadow: '0 4px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 46, 67, 0.4)'
+          textShadow: '0 4px 30px rgba(0, 0, 0, 0.9), 0 0 25px rgba(230, 38, 10, 0.5)'
         }}>
           EL VERDADERO COACHING DE{' '}
           <span style={{
-            background: 'linear-gradient(135deg, #ff2e43 0%, #ff8593 50%, #f59e0b 100%)',
+            background: 'linear-gradient(180deg, #ffea79 0%, #ff8000 50%, #e6260a 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 0 15px rgba(255, 46, 67, 0.6))'
+            filter: 'drop-shadow(0 0 20px rgba(255, 75, 0, 0.7))'
           }}>
             THE KING OF FIGHTERS '98
           </span>
@@ -67,12 +68,12 @@ export function Hero({ currentUser, onScrollToSimulator, onOpenBooking, onOpenLo
           la compatibilidad de medidor (<span style={{ color: '#34d399' }}>Mood System</span>) y recibe recomendaciones de frame data, safe hops y guard cancels.
         </p>
 
-        {/* CTA Button Group: Conditional based on Authentication */}
+        {/* CTA Button Group: ADVANCED & EXTRA Arcade Styles */}
         <div style={{
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          gap: '1rem',
+          gap: '1.25rem',
           flexWrap: 'wrap',
           marginBottom: '3.5rem'
         }}>
@@ -81,54 +82,52 @@ export function Hero({ currentUser, onScrollToSimulator, onOpenBooking, onOpenLo
             <>
               <button
                 type="button"
-                className="btn-snk"
+                className="btn-advanced"
                 onClick={() => {
                   arcadeAudio.playFight();
                   onScrollToSimulator();
                 }}
               >
-                <Zap size={22} />
-                <span>Configurar Equipos en el Simulador</span>
+                <Zap size={22} color="#ffe066" />
+                <span>Simulador de Equipos</span>
               </button>
 
               <button
                 type="button"
-                className="btn-ghost"
-                style={{ fontSize: '1.1rem', padding: '0.85rem 1.8rem' }}
+                className="btn-extra"
                 onClick={() => {
                   arcadeAudio.playCoin();
                   onOpenBooking();
                 }}
               >
-                <Trophy size={18} color="#f59e0b" />
-                <span>Ver Mentorías 1-a-1</span>
+                <Trophy size={20} color="#86efac" />
+                <span>Mentorías 1-a-1</span>
               </button>
             </>
           ) : (
-            /* Logged Out: Immediate access removed, prompts login/register */
+            /* Logged Out: Prompts login / register in ADVANCED vs EXTRA arcade style */
             <>
               <button
                 type="button"
-                className="btn-snk"
+                className="btn-advanced"
                 onClick={() => {
                   arcadeAudio.playSelect();
                   onOpenLogin();
                 }}
               >
-                <LogIn size={20} />
-                <span>Iniciar Sesión para Acceder</span>
+                <LogIn size={20} color="#ffe066" />
+                <span>Iniciar Sesión</span>
               </button>
 
               <button
                 type="button"
-                className="btn-snk btn-snk-gold"
-                style={{ fontSize: '1.25rem', padding: '0.75rem 1.8rem' }}
+                className="btn-extra"
                 onClick={() => {
                   arcadeAudio.playSelect();
                   onOpenRegister();
                 }}
               >
-                <UserPlus size={20} />
+                <UserPlus size={20} color="#86efac" />
                 <span>Registrarse Gratis</span>
               </button>
             </>
