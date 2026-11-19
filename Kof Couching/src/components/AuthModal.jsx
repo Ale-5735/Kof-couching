@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Lock, UserPlus, LogIn, Flame, ShieldAlert, CheckCircle2, Sparkles } from 'lucide-react';
-import { login, register } from '../utils/auth';
+import { X, Lock, UserPlus, LogIn, Flame, ShieldAlert, CheckCircle2, Sparkles, Crown } from 'lucide-react';
+import { login, register, ADMIN_USER } from '../utils/auth';
 import { CHARACTERS } from '../data/characters';
 import { CHARACTER_IMAGES } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
@@ -62,6 +62,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
   const handleQuickDemoLogin = () => {
     arcadeAudio.playCoin();
     const res = login('demo@kof98.com', 'kof98password');
+    if (res.success) {
+      onAuthSuccess(res.user);
+      onClose();
+    }
+  };
+
+  const handleQuickAdminLogin = () => {
+    arcadeAudio.playFight();
+    const res = login(ADMIN_USER.email, ADMIN_USER.password);
     if (res.success) {
       onAuthSuccess(res.user);
       onClose();
@@ -268,29 +277,55 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
               <span>INGRESAR AHORA</span>
             </button>
 
-            {/* Demo One-Click Access Button */}
+            {/* Quick One-Click Access Options: Student & Administrator */}
             <div style={{
-              marginTop: '0.5rem',
+              marginTop: '0.75rem',
               paddingTop: '1rem',
               borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              textAlign: 'center'
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.6rem'
             }}>
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.5rem' }}>
-                ¿Quieres probar rápido sin escribir?
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', textAlign: 'center' }}>
+                Accesos de Prueba Rápida (1-Click):
               </span>
+
+              {/* Student Demo */}
               <button
                 type="button"
                 onClick={handleQuickDemoLogin}
                 className="btn-mode-select"
                 style={{
                   width: '100%',
-                  fontSize: '0.95rem',
-                  padding: '0.5rem'
+                  fontSize: '0.9rem',
+                  padding: '0.45rem'
                 }}
+                title="demo@kof98.com / kof98password"
               >
                 <Sparkles size={14} color="#00f0ff" />
-                <span>Acceder como Demo (KOF_Master98)</span>
+                <span>Alumno Demo: KOF_Master98</span>
               </button>
+
+              {/* Administrator Demo */}
+              <button
+                type="button"
+                onClick={handleQuickAdminLogin}
+                className="btn-snk-gold"
+                style={{
+                  width: '100%',
+                  fontSize: '0.95rem',
+                  padding: '0.5rem',
+                  gap: '0.5rem'
+                }}
+                title="admin@kof98.com / admin98"
+              >
+                <Crown size={15} color="#000" />
+                <span style={{ color: '#000', fontWeight: 800 }}>Acceder como Administrador (Control Total)</span>
+              </button>
+
+              <div style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'center', marginTop: '0.2rem' }}>
+                Credenciales Admin: <code>admin@kof98.com</code> | Clave: <code>admin98</code>
+              </div>
             </div>
           </form>
         ) : (

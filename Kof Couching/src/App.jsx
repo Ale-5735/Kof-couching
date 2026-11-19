@@ -13,6 +13,7 @@ import { MechanicsGuide } from './components/MechanicsGuide';
 import { TestimonialsFAQ } from './components/TestimonialsFAQ';
 import { BookingModal } from './components/BookingModal';
 import { AuthModal } from './components/AuthModal';
+import { AdminPanelModal } from './components/AdminPanelModal';
 import { Footer } from './components/Footer';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register'
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
 
   // Team slots (empty initially so user can build teams)
   const [team1, setTeam1] = useState([null, null, null]);
@@ -155,6 +157,7 @@ function App() {
         onOpenRegister={handleOpenRegister}
         onLogout={handleLogout}
         onOpenBooking={() => setBookingModalOpen(true)}
+        onOpenAdmin={() => setAdminModalOpen(true)}
       />
 
       {/* Hero Section */}
@@ -231,6 +234,14 @@ function App() {
         onClose={() => setBookingModalOpen(false)}
         defaultTeam={team1.filter(Boolean)}
         selectedPlan={selectedPlanForBooking}
+      />
+
+      {/* Administrator Control Panel Modal (Restricted to role === 'admin') */}
+      <AdminPanelModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+        currentUser={currentUser}
+        onSessionUpdated={(updated) => setCurrentUser(updated)}
       />
 
       {/* Footer */}

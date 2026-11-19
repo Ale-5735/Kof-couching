@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Flame, Swords, Calendar, HelpCircle, BookOpen, LogIn, UserPlus, LogOut, Lock, User } from 'lucide-react';
+import { Volume2, VolumeX, Flame, Swords, Calendar, HelpCircle, BookOpen, LogIn, UserPlus, LogOut, Lock, User, Crown, ShieldAlert } from 'lucide-react';
 import { arcadeAudio } from '../utils/audio';
 import { CHARACTER_IMAGES } from '../assets/characterImages';
 
@@ -8,7 +8,8 @@ export function Navbar({
   onOpenLogin,
   onOpenRegister,
   onLogout,
-  onOpenBooking
+  onOpenBooking,
+  onOpenAdmin,
 }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -225,8 +226,8 @@ export function Navbar({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                background: 'rgba(59, 130, 246, 0.15)',
-                border: '1px solid rgba(59, 130, 246, 0.35)',
+                background: currentUser.role === 'admin' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid ' + (currentUser.role === 'admin' ? 'rgba(245, 158, 11, 0.45)' : 'rgba(59, 130, 246, 0.35)'),
                 borderRadius: '8px',
                 padding: '0.35rem 0.75rem'
               }}>
@@ -238,7 +239,8 @@ export function Navbar({
                   overflow: 'hidden',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  border: currentUser.role === 'admin' ? '1px solid #f59e0b' : 'none'
                 }}>
                   {CHARACTER_IMAGES[currentUser.mainChar] ? (
                     <img
@@ -247,18 +249,43 @@ export function Navbar({
                       style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
                     />
                   ) : (
-                    <User size={14} color="#60a5fa" />
+                    <User size={14} color={currentUser.role === 'admin' ? '#fbbf24' : '#60a5fa'} />
                   )}
                 </div>
                 <div>
-                  <div className="font-tech" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>
-                    {currentUser.gamertag}
+                  <div className="font-tech" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <span>{currentUser.gamertag}</span>
+                    {currentUser.role === 'admin' && (
+                      <Crown size={12} color="#fbbf24" />
+                    )}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#60a5fa' }}>
-                    {currentUser.rank || 'Miembro Pro'}
+                  <div style={{ fontSize: '0.65rem', color: currentUser.role === 'admin' ? '#fbbf24' : '#60a5fa' }}>
+                    {currentUser.role === 'admin' ? 'System Operator' : (currentUser.rank || 'Miembro Pro')}
                   </div>
                 </div>
               </div>
+
+              {/* ADMIN CONTROL PANEL BUTTON (Only shown for Admin role) */}
+              {currentUser.role === 'admin' && (
+                <button
+                  type="button"
+                  className="btn-mode-select"
+                  style={{
+                    padding: '0.4rem 1.1rem',
+                    fontSize: '1rem',
+                    color: '#fbbf24',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                  }}
+                  onClick={() => {
+                    arcadeAudio.playFight();
+                    onOpenAdmin && onOpenAdmin();
+                  }}
+                  title="Abrir Panel de Control del Administrador"
+                >
+                  <Crown size={15} color="#fbbf24" />
+                  <span>Panel Admin</span>
+                </button>
+              )}
 
               {/* Book button only for logged in members */}
               <button
