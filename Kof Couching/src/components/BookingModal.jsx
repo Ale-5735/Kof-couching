@@ -26,22 +26,25 @@ export function BookingModal({ isOpen, onClose, defaultTeam, selectedPlan }) {
     <div style={{
       position: 'fixed',
       inset: 0,
-      zIndex: 200,
-      background: 'rgba(0, 0, 0, 0.85)',
-      backdropFilter: 'blur(8px)',
+      zIndex: 350,
+      background: 'rgba(0, 0, 0, 0.88)',
+      backdropFilter: 'blur(10px)',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
-      padding: '1.25rem',
+      padding: '1.5rem 1rem',
       overflowY: 'auto'
     }}>
       <div className="glass-panel" style={{
         maxWidth: '560px',
         width: '100%',
-        padding: '2.2rem',
+        maxHeight: 'min(92vh, 820px)',
+        margin: 'auto 0',
+        padding: '2.2rem 2rem',
         border: '1px solid rgba(255, 46, 67, 0.4)',
         boxShadow: '0 0 50px rgba(255, 46, 67, 0.3)',
-        position: 'relative'
+        position: 'relative',
+        overflowY: 'auto'
       }}>
         {/* Close Button */}
         <button

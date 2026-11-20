@@ -16,19 +16,22 @@ export const ADMIN_USER = {
   joinedDate: '1998-07-23',
 };
 
+// Official Demo Student Account
+export const DEMO_STUDENT_USER = {
+  id: 'user_master98',
+  gamertag: 'KOF_Master98',
+  email: 'demo@kof98.com',
+  password: 'kof98password',
+  role: 'user',
+  mainChar: 'iori',
+  rank: 'Rank S (Alumno Élite)',
+  joinedDate: '2026-01-15',
+};
+
 // Pre-seeded default users
 const INITIAL_DEMO_USERS = [
   ADMIN_USER,
-  {
-    id: 'user_master98',
-    gamertag: 'KOF_Master98',
-    email: 'demo@kof98.com',
-    password: 'kof98password',
-    role: 'user',
-    mainChar: 'iori',
-    rank: 'Rank S',
-    joinedDate: '2026-01-15',
-  },
+  DEMO_STUDENT_USER,
   {
     id: 'user_daimon_cl',
     gamertag: 'DaimonMaster_CL',
@@ -41,7 +44,7 @@ const INITIAL_DEMO_USERS = [
   },
 ];
 
-// Initialize storage and guarantee the Admin account is always present
+// Initialize storage and guarantee Admin and Demo Student (KOF_Master98) are always present
 export function initAuthStorage() {
   if (typeof window === 'undefined') return;
   try {
@@ -49,18 +52,63 @@ export function initAuthStorage() {
     if (!existingRaw) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_DEMO_USERS));
     } else {
-      const users = JSON.parse(existingRaw);
+      let users = JSON.parse(existingRaw);
+      let modified = false;
+
       // Guarantee the admin account exists
       const hasAdmin = users.some(
         (u) => u.email.toLowerCase() === ADMIN_USER.email.toLowerCase() || u.id === ADMIN_USER.id
       );
       if (!hasAdmin) {
         users.unshift(ADMIN_USER);
+        modified = true;
+      }
+
+      // Guarantee KOF_Master98 (demo student) exists
+      const hasDemoStudent = users.some(
+        (u) =>
+          u.email.toLowerCase() === DEMO_STUDENT_USER.email.toLowerCase() ||
+          u.gamertag.toLowerCase() === DEMO_STUDENT_USER.gamertag.toLowerCase()
+      );
+      if (!hasDemoStudent) {
+        users.push(DEMO_STUDENT_USER);
+        modified = true;
+      }
+
+      if (modified) {
         localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
       }
     }
   } catch {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_DEMO_USERS));
+  }
+}
+
+// Explicitly restore all default demonstration accounts
+export function restoreDefaultUsers() {
+  if (typeof window === 'undefined') return { success: false };
+  try {
+    initAuthStorage();
+    const existingRaw = localStorage.getItem(USERS_STORAGE_KEY);
+    let users = existingRaw ? JSON.parse(existingRaw) : [];
+    let addedCount = 0;
+
+    for (const demoUser of INITIAL_DEMO_USERS) {
+      const exists = users.some(
+        (u) =>
+          u.email.toLowerCase() === demoUser.email.toLowerCase() ||
+          u.gamertag.toLowerCase() === demoUser.gamertag.toLowerCase()
+      );
+      if (!exists) {
+        users.push(demoUser);
+        addedCount++;
+      }
+    }
+
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    return { success: true, count: addedCount };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 }
 

@@ -15,7 +15,7 @@ import {
   Crown,
   Check,
   AlertTriangle,
-  RefreshCw,
+  RotateCcw,
   Sparkles,
   Lock,
 } from 'lucide-react';
@@ -25,7 +25,9 @@ import {
   adminDeleteUser,
   adminCreateUser,
   adminResetPassword,
+  restoreDefaultUsers,
   ADMIN_USER,
+  DEMO_STUDENT_USER,
 } from '../utils/auth';
 import { CHARACTERS } from '../data/characters';
 import { CHARACTER_IMAGES } from '../assets/characterImages';
@@ -73,6 +75,20 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
     setTimeout(() => {
       setToast(null);
     }, 3500);
+  };
+
+  // Restore Default Demo Users (e.g. KOF_Master98)
+  const handleRestoreDemoUsers = () => {
+    arcadeAudio.playFight();
+    const res = restoreDefaultUsers();
+    if (res.success) {
+      refreshUsersList();
+      showToast(
+        res.count > 0
+          ? `¡Se restauraron ${res.count} cuentas demo (KOF_Master98 incluido)!`
+          : 'Todas las cuentas demo ya están presentes en la lista.'
+      );
+    }
   };
 
   // Filtered users
@@ -203,9 +219,9 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
         background: 'rgba(2, 4, 10, 0.92)',
         backdropFilter: 'blur(12px)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: '1.25rem',
+        padding: '1.5rem 1rem',
         overflowY: 'auto',
       }}
     >
@@ -213,13 +229,15 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '1100px',
-          maxHeight: '92vh',
+          maxWidth: '1140px',
+          maxHeight: 'min(92vh, 850px)',
+          margin: 'auto 0',
           display: 'flex',
           flexDirection: 'column',
           border: '2px solid rgba(245, 158, 11, 0.4)',
           boxShadow: '0 0 50px rgba(245, 158, 11, 0.25), 0 20px 40px rgba(0,0,0,0.9)',
           position: 'relative',
+          overflow: 'hidden',
         }}
       >
         {/* Toast Alert */}
@@ -229,7 +247,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               position: 'absolute',
               top: '1rem',
               right: '1rem',
-              zIndex: 50,
+              zIndex: 60,
               padding: '0.65rem 1.25rem',
               borderRadius: '6px',
               fontFamily: 'var(--font-tech)',
@@ -248,7 +266,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
           </div>
         )}
 
-        {/* Header */}
+        {/* Pinned Header */}
         <div
           style={{
             padding: '1.25rem 1.5rem',
@@ -256,7 +274,8 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(6, 8, 15, 0.9) 100%)',
+            flexShrink: 0,
+            background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(6, 8, 15, 0.95) 100%)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
@@ -307,12 +326,13 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               alignItems: 'center',
               justifyContent: 'center',
             }}
+            title="Cerrar Panel"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Content Body */}
+        {/* Scrollable Content Body */}
         <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
           {/* Quick Stats Grid */}
           <div
@@ -425,14 +445,14 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               flexWrap: 'wrap',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '1rem',
+              gap: '0.75rem',
               marginBottom: '1.25rem',
               paddingBottom: '1rem',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             }}
           >
             {/* Search Input */}
-            <div style={{ position: 'relative', minWidth: '260px', flex: '1 1 300px' }}>
+            <div style={{ position: 'relative', minWidth: '240px', flex: '1 1 260px' }}>
               <Search
                 size={16}
                 color="#94a3b8"
@@ -483,19 +503,33 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               ))}
             </div>
 
-            {/* Create New Account Button */}
-            <button
-              type="button"
-              className="btn-extra"
-              style={{ fontSize: '0.95rem', padding: '0.45rem 1.2rem' }}
-              onClick={() => {
-                arcadeAudio.playCoin();
-                setIsCreatingUser(true);
-              }}
-            >
-              <Plus size={16} />
-              <span>Registrar Nueva Cuenta</span>
-            </button>
+            {/* Actions: Restore Demo Users & Create New Account */}
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ fontSize: '0.85rem', padding: '0.45rem 0.9rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+                onClick={handleRestoreDemoUsers}
+                title="Restaura las cuentas demo iniciales si fueron eliminadas (incluye KOF_Master98)"
+              >
+                <RotateCcw size={15} color="#38bdf8" />
+                <span>Restaurar Alumnos Demo</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-extra"
+                style={{ fontSize: '0.95rem', padding: '0.45rem 1.2rem' }}
+                onClick={() => {
+                  arcadeAudio.playCoin();
+                  setIsCreatingUser(true);
+                  setFormError(null);
+                }}
+              >
+                <Plus size={16} />
+                <span>Registrar Nueva Cuenta</span>
+              </button>
+            </div>
           </div>
 
           {/* Registered Users Table */}
@@ -531,7 +565,16 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
 
             {filteredUsers.length === 0 ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#94a3b8' }}>
-                No se encontraron cuentas que coincidan con la búsqueda.
+                <p style={{ marginBottom: '0.75rem' }}>No se encontraron cuentas que coincidan con la búsqueda.</p>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={handleRestoreDemoUsers}
+                  style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }}
+                >
+                  <RotateCcw size={14} />
+                  <span>Restaurar KOF_Master98 y Cuentas Demo</span>
+                </button>
               </div>
             ) : (
               filteredUsers.map((u) => {
@@ -582,6 +625,11 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                         {u.id === currentUser.id && (
                           <span style={{ fontSize: '0.65rem', background: '#2563eb', color: '#fff', padding: '1px 5px', borderRadius: '3px' }}>
                             Tú
+                          </span>
+                        )}
+                        {u.email.toLowerCase() === DEMO_STUDENT_USER.email.toLowerCase() && (
+                          <span style={{ fontSize: '0.65rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '3px' }}>
+                            Demo
                           </span>
                         )}
                       </div>
@@ -731,7 +779,8 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
         </div>
 
         {/* ===================================================================
-            SUB-MODAL: EDIT USER
+            SUB-MODAL: EDIT USER (MODIFICAR DETALLES DE LA CUENTA)
+            Featuring Pinned Header [X] and Pinned Footer [Guardar Cambios]
            =================================================================== */}
         {editingUser && (
           <div
@@ -739,64 +788,99 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               position: 'fixed',
               inset: 0,
               zIndex: 500,
-              background: 'rgba(0, 0, 0, 0.85)',
+              background: 'rgba(0, 0, 0, 0.88)',
+              backdropFilter: 'blur(10px)',
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               justifyContent: 'center',
-              padding: '1rem',
+              padding: '1.5rem 1rem',
+              overflowY: 'auto',
             }}
           >
             <div
               className="glass-panel"
               style={{
                 width: '100%',
-                maxWidth: '520px',
-                padding: '1.75rem',
-                border: '2px solid rgba(56, 189, 248, 0.4)',
+                maxWidth: '540px',
+                maxHeight: 'min(92vh, 760px)',
+                margin: 'auto 0',
+                display: 'flex',
+                flexDirection: 'column',
+                border: '2px solid rgba(56, 189, 248, 0.5)',
+                boxShadow: '0 0 50px rgba(56, 189, 248, 0.35)',
+                overflow: 'hidden',
+                position: 'relative',
               }}
             >
+              {/* Pinned Sub-Modal Header */}
               <div
                 style={{
+                  padding: '1.25rem 1.5rem',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: '1.25rem',
+                  flexShrink: 0,
+                  background: 'linear-gradient(180deg, rgba(10, 24, 48, 0.9) 0%, rgba(4, 7, 17, 0.95) 100%)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Edit2 size={20} color="#38bdf8" />
                   <span className="font-neogeo" style={{ fontSize: '1.5rem', color: '#fff' }}>
-                    EDITAR CUENTA: {editingUser.gamertag}
+                    MODIFICAR CUENTA: {editingUser.gamertag}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setEditingUser(null)}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title="Cerrar"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {formError && (
-                <div
-                  style={{
-                    padding: '0.6rem',
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '1px solid #ef4444',
-                    borderRadius: '4px',
-                    color: '#f87171',
-                    fontSize: '0.82rem',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  {formError}
-                </div>
-              )}
+              {/* Scrollable Form Body */}
+              <form
+                id="editUserForm"
+                onSubmit={handleSaveEdit}
+                style={{
+                  padding: '1.25rem 1.5rem',
+                  overflowY: 'auto',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.85rem',
+                }}
+              >
+                {formError && (
+                  <div
+                    style={{
+                      padding: '0.6rem 0.8rem',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid #ef4444',
+                      borderRadius: '6px',
+                      color: '#f87171',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    {formError}
+                  </div>
+                )}
 
-              <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                     Gamertag en Fightcade:
                   </label>
                   <input
@@ -817,7 +901,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                     Correo Electrónico:
                   </label>
                   <input
@@ -839,7 +923,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                       Rol de Cuenta:
                     </label>
                     <select
@@ -861,7 +945,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                       Rango de Habilidad:
                     </label>
                     <select
@@ -878,6 +962,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                       }}
                     >
                       <option value="Rank S+ (Pro Player)">Rank S+ (Pro Player)</option>
+                      <option value="Rank S (Alumno Élite)">Rank S (Alumno Élite)</option>
                       <option value="Rank S">Rank S</option>
                       <option value="Rank A">Rank A</option>
                       <option value="Rank B">Rank B</option>
@@ -889,13 +974,13 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
 
                 {/* Main Character Picker */}
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.4rem' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.4rem' }}>
                     Personaje Principal (Main):
                   </label>
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gridTemplateColumns: 'repeat(6, 1fr)',
                       gap: '0.4rem',
                       maxHeight: '130px',
                       overflowY: 'auto',
@@ -911,10 +996,10 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                         type="button"
                         onClick={() => setEditingUser({ ...editingUser, mainChar: c.id })}
                         style={{
-                          background: editingUser.mainChar === c.id ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                          background: editingUser.mainChar === c.id ? 'rgba(56, 189, 248, 0.3)' : 'transparent',
                           border: editingUser.mainChar === c.id ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
                           borderRadius: '4px',
-                          padding: '2px',
+                          padding: '3px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -931,27 +1016,43 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                     ))}
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setEditingUser(null)}
-                    className="btn-ghost"
-                    style={{ flex: 1, padding: '0.55rem' }}
-                  >
-                    Cancelar
-                  </button>
-                  <button type="submit" className="btn-advanced" style={{ flex: 2, padding: '0.55rem', fontSize: '1.1rem' }}>
-                    Guardar Cambios
-                  </button>
-                </div>
               </form>
+
+              {/* Pinned Sub-Modal Footer: Always Visible */}
+              <div
+                style={{
+                  padding: '1rem 1.5rem',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  gap: '0.75rem',
+                  flexShrink: 0,
+                  background: 'rgba(4, 7, 17, 0.98)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="btn-ghost"
+                  style={{ flex: 1, padding: '0.55rem' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  form="editUserForm"
+                  className="btn-advanced"
+                  style={{ flex: 2, padding: '0.55rem', fontSize: '1.1rem' }}
+                >
+                  Guardar Cambios
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* ===================================================================
             SUB-MODAL: CREATE USER
+            Featuring Pinned Header [X] and Pinned Footer [Crear Cuenta]
            =================================================================== */}
         {isCreatingUser && (
           <div
@@ -959,28 +1060,40 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               position: 'fixed',
               inset: 0,
               zIndex: 500,
-              background: 'rgba(0, 0, 0, 0.85)',
+              background: 'rgba(0, 0, 0, 0.88)',
+              backdropFilter: 'blur(10px)',
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               justifyContent: 'center',
-              padding: '1rem',
+              padding: '1.5rem 1rem',
+              overflowY: 'auto',
             }}
           >
             <div
               className="glass-panel"
               style={{
                 width: '100%',
-                maxWidth: '520px',
-                padding: '1.75rem',
-                border: '2px solid rgba(16, 185, 129, 0.4)',
+                maxWidth: '540px',
+                maxHeight: 'min(92vh, 760px)',
+                margin: 'auto 0',
+                display: 'flex',
+                flexDirection: 'column',
+                border: '2px solid rgba(16, 185, 129, 0.5)',
+                boxShadow: '0 0 50px rgba(16, 185, 129, 0.35)',
+                overflow: 'hidden',
+                position: 'relative',
               }}
             >
+              {/* Pinned Sub-Modal Header */}
               <div
                 style={{
+                  padding: '1.25rem 1.5rem',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: '1.25rem',
+                  flexShrink: 0,
+                  background: 'linear-gradient(180deg, rgba(6, 28, 18, 0.9) 0%, rgba(4, 7, 17, 0.95) 100%)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -992,31 +1105,54 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                 <button
                   type="button"
                   onClick={() => setIsCreatingUser(false)}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title="Cerrar"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {formError && (
-                <div
-                  style={{
-                    padding: '0.6rem',
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '1px solid #ef4444',
-                    borderRadius: '4px',
-                    color: '#f87171',
-                    fontSize: '0.82rem',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  {formError}
-                </div>
-              )}
+              {/* Scrollable Form Body */}
+              <form
+                id="createUserForm"
+                onSubmit={handleCreateUser}
+                style={{
+                  padding: '1.25rem 1.5rem',
+                  overflowY: 'auto',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.85rem',
+                }}
+              >
+                {formError && (
+                  <div
+                    style={{
+                      padding: '0.6rem 0.8rem',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid #ef4444',
+                      borderRadius: '6px',
+                      color: '#f87171',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    {formError}
+                  </div>
+                )}
 
-              <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                     Gamertag (Fightcade):
                   </label>
                   <input
@@ -1038,7 +1174,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                     Correo Electrónico:
                   </label>
                   <input
@@ -1060,7 +1196,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                     Contraseña Inicial:
                   </label>
                   <input
@@ -1083,7 +1219,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                       Rol:
                     </label>
                     <select
@@ -1105,7 +1241,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.3rem' }}>
                       Rango:
                     </label>
                     <select
@@ -1122,6 +1258,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                       }}
                     >
                       <option value="Rank S+ (Pro Player)">Rank S+ (Pro Player)</option>
+                      <option value="Rank S (Alumno Élite)">Rank S (Alumno Élite)</option>
                       <option value="Rank S">Rank S</option>
                       <option value="Rank A">Rank A</option>
                       <option value="Rank B">Rank B</option>
@@ -1133,13 +1270,13 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
 
                 {/* Main Character Picker */}
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.4rem' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '0.4rem' }}>
                     Personaje Principal (Main):
                   </label>
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gridTemplateColumns: 'repeat(6, 1fr)',
                       gap: '0.4rem',
                       maxHeight: '130px',
                       overflowY: 'auto',
@@ -1155,10 +1292,10 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                         type="button"
                         onClick={() => setNewUserData({ ...newUserData, mainChar: c.id })}
                         style={{
-                          background: newUserData.mainChar === c.id ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
+                          background: newUserData.mainChar === c.id ? 'rgba(16, 185, 129, 0.3)' : 'transparent',
                           border: newUserData.mainChar === c.id ? '2px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
                           borderRadius: '4px',
-                          padding: '2px',
+                          padding: '3px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -1175,21 +1312,36 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
                     ))}
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsCreatingUser(false)}
-                    className="btn-ghost"
-                    style={{ flex: 1, padding: '0.55rem' }}
-                  >
-                    Cancelar
-                  </button>
-                  <button type="submit" className="btn-extra" style={{ flex: 2, padding: '0.55rem', fontSize: '1.1rem' }}>
-                    Crear Cuenta
-                  </button>
-                </div>
               </form>
+
+              {/* Pinned Sub-Modal Footer: Always Visible */}
+              <div
+                style={{
+                  padding: '1rem 1.5rem',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  gap: '0.75rem',
+                  flexShrink: 0,
+                  background: 'rgba(4, 7, 17, 0.98)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingUser(false)}
+                  className="btn-ghost"
+                  style={{ flex: 1, padding: '0.55rem' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  form="createUserForm"
+                  className="btn-extra"
+                  style={{ flex: 2, padding: '0.55rem', fontSize: '1.1rem' }}
+                >
+                  Crear Cuenta
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1203,28 +1355,47 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               position: 'fixed',
               inset: 0,
               zIndex: 500,
-              background: 'rgba(0, 0, 0, 0.85)',
+              background: 'rgba(0, 0, 0, 0.88)',
+              backdropFilter: 'blur(10px)',
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               justifyContent: 'center',
-              padding: '1rem',
+              padding: '1.5rem 1rem',
+              overflowY: 'auto',
             }}
           >
             <div
               className="glass-panel"
               style={{
                 width: '100%',
-                maxWidth: '420px',
-                padding: '1.75rem',
+                maxWidth: '440px',
+                margin: 'auto 0',
+                padding: '1.5rem',
                 border: '2px solid rgba(245, 158, 11, 0.5)',
+                boxShadow: '0 0 40px rgba(245, 158, 11, 0.3)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
-                <Key size={22} color="#f59e0b" />
-                <span className="font-neogeo" style={{ fontSize: '1.4rem', color: '#fff' }}>
-                  CAMBIAR CONTRASEÑA
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Key size={22} color="#f59e0b" />
+                  <span className="font-neogeo" style={{ fontSize: '1.4rem', color: '#fff' }}>
+                    CAMBIAR CONTRASEÑA
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalUser(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={18} />
+                </button>
               </div>
+
               <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: '1.25rem' }}>
                 Ingresa una nueva contraseña para la cuenta de <strong>{passwordModalUser.gamertag}</strong>:
               </p>
@@ -1292,10 +1463,12 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               inset: 0,
               zIndex: 500,
               background: 'rgba(0, 0, 0, 0.88)',
+              backdropFilter: 'blur(10px)',
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               justifyContent: 'center',
-              padding: '1rem',
+              padding: '1.5rem 1rem',
+              overflowY: 'auto',
             }}
           >
             <div
@@ -1303,6 +1476,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               style={{
                 width: '100%',
                 maxWidth: '440px',
+                margin: 'auto 0',
                 padding: '1.75rem',
                 border: '2px solid rgba(239, 68, 68, 0.6)',
                 textAlign: 'center',
@@ -1330,7 +1504,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
               <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.5, marginBottom: '1.5rem' }}>
                 Estás a punto de eliminar definitivamente al usuario{' '}
                 <strong style={{ color: '#f87171' }}>{deleteConfirmUser.gamertag}</strong> ({deleteConfirmUser.email}).
-                Esta acción no se puede deshacer.
+                Esta acción se puede revertir con el botón de "Restaurar Alumnos Demo" si es una cuenta de prueba.
               </p>
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -1367,4 +1541,3 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
     </div>
   );
 }
-
