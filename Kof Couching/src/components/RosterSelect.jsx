@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CHARACTERS, TEAM_PRESETS, OROCHI_COUNTERPARTS } from '../data/characters';
 import { CHARACTER_IMAGES, UI_ICONS } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
@@ -27,6 +27,13 @@ export function RosterSelect({
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [conflictToast, setConflictToast] = useState(null);
 
+  // Global mouseup to guarantee mouse drag never leaves isMouseDown stuck
+  useEffect(() => {
+    const handleGlobalMouseUp = () => setIsMouseDown(false);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
   const slotLabels = [
     { title: 'POINT (1º)', roleDesc: 'Iniciador • 0 Barras', color: '#38bdf8' },
     { title: 'MID (2º)', roleDesc: 'Control • 1-2 Barras', color: '#fbbf24' },
@@ -47,12 +54,14 @@ export function RosterSelect({
       const existing = currentTeam[idx];
       if (!existing) continue;
 
-      // 1. Same character already on team
+      // 1. Same character already on team (allow clicking to deselect)
       if (existing.id === char.id) {
         return {
-          isBlocked: true,
-          reason: `${char.name} ya está en este equipo (${slotLabels[idx].title}).`,
-          badge: 'YA EN EQUIPO',
+          isBlocked: false,
+          isAlreadyInTeam: true,
+          slotIdx: idx,
+          badge: 'EN EQUIPO',
+          reason: `${char.name} ya está en este equipo (${slotLabels[idx].title}). Clic para deseleccionarlo.`,
         };
       }
 
@@ -80,6 +89,22 @@ export function RosterSelect({
   });
 
   const handleCardClick = (char) => {
+    // 1. Check if clicked character is ALREADY in the active drafting team:
+    // If so, DESELECT it!
+    const currentTeam = activeTarget.team === 1 ? team1 : team2;
+    const existingSlotIdx = currentTeam.findIndex((c) => c?.id === char.id);
+
+    if (existingSlotIdx !== -1) {
+      arcadeAudio.playDeselect();
+      onRemoveCharacter(activeTarget.team, existingSlotIdx);
+      // Retarget to the slot that was just cleared so user can easily re-pick
+      setActiveTarget({ team: activeTarget.team, slot: existingSlotIdx });
+      setConflictToast(`Deseleccionado: ${char.name} del equipo ${activeTarget.team}P`);
+      setTimeout(() => setConflictToast(null), 2500);
+      return;
+    }
+
+    // 2. Check for Orochi counterpart or other conflict rules
     const conflict = getConflictInfo(char);
     if (conflict.isBlocked) {
       arcadeAudio.playDeselect();
@@ -88,6 +113,7 @@ export function RosterSelect({
       return;
     }
 
+    // 3. Normal selection into current target slot
     setConflictToast(null);
     arcadeAudio.playSelect();
     onSelectCharacter(char, activeTarget.team, activeTarget.slot);
@@ -152,20 +178,20 @@ export function RosterSelect({
           background: char
             ? 'linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(9, 10, 15, 0.95) 100%)'
             : isTarget
-            ? isP1
-              ? 'rgba(59, 130, 246, 0.12)'
-              : 'rgba(239, 68, 68, 0.12)'
-            : 'rgba(10, 12, 18, 0.6)',
+              ? isP1
+                ? 'rgba(59, 130, 246, 0.12)'
+                : 'rgba(239, 68, 68, 0.12)'
+              : 'rgba(10, 12, 18, 0.6)',
           border: isTarget
             ? `2px solid ${isP1 ? '#60a5fa' : '#f87171'}`
             : char
-            ? `1px solid ${char.color || teamAccent}`
-            : '1px dashed rgba(255, 255, 255, 0.18)',
+              ? `1px solid ${char.color || teamAccent}`
+              : '1px dashed rgba(255, 255, 255, 0.18)',
           boxShadow: isTarget
             ? `0 0 20px ${isP1 ? 'rgba(59, 130, 246, 0.45)' : 'rgba(239, 68, 68, 0.45)'}`
             : char
-            ? `0 4px 15px rgba(0, 0, 0, 0.5)`
-            : 'none',
+              ? `0 4px 15px rgba(0, 0, 0, 0.5)`
+              : 'none',
           transition: 'all 0.2s ease',
         }}
       >
@@ -367,31 +393,116 @@ export function RosterSelect({
 
   return (
     <section id="simulator" style={{ padding: '3rem 0', position: 'relative' }}>
-      {/* Injected CSS to enforce custom P1 / P2 cursor on hover and switch to SELECT on left-click */}
+      {/* KOF '98 Arcade Selector & Portrait System */}
       <style>{`
-        .roster-card.p1-turn-cursor {
-          cursor: url("${UI_ICONS.p1Cursor}") 14 14, pointer !important;
-        }
-        .roster-card.p1-turn-cursor:active,
-        .roster-card.p1-turn-cursor.clicking {
-          cursor: url("${UI_ICONS.p1CursorSelect}") 14 14, pointer !important;
+        :root {
+          /* Tamaño y posicionamiento del cuadro del retrato KOF '98 */
+          --kof-portrait-size: 68px;
+          --kof-cursor-scale: 168%; /* Escala arcade para abrazar las esquinas y sobresalir como en KOF '98 */
         }
 
-        .roster-card.p2-turn-cursor {
-          cursor: url("${UI_ICONS.p2Cursor}") 14 14, pointer !important;
+        .roster-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+          gap: 0.65rem;
         }
-        .roster-card.p2-turn-cursor:active,
-        .roster-card.p2-turn-cursor.clicking {
-          cursor: url("${UI_ICONS.p2CursorSelect}") 14 14, pointer !important;
+
+        .roster-card {
+          position: relative;
+          cursor: pointer !important;
+          user-select: none;
+          transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+          overflow: visible !important;
+          border-width: 2px !important;
+          border-style: solid !important;
+          /* Sin transform: translateY en hover para eliminar cualquier tembleque o conflicto visual entre retratos */
+        }
+
+        .roster-card:hover {
+          z-index: 15;
+          box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
+        }
+
+        /* Recuadro del retrato del personaje: posición relative y overflow: visible para permitir que el cursor sobresalga */
+        .kof-portrait-container {
+          position: relative;
+          width: var(--kof-portrait-size, 68px);
+          height: var(--kof-portrait-size, 68px);
+          margin: 0 auto 0.35rem;
+          border-radius: 6px;
+          overflow: visible !important;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.7) 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-width: 2px;
+          border-style: solid;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        /* Selector Arcade 1P / 2P superpuesto abrazando esquinas y sobresaliendo estilo KOF '98 arcade */
+        .kof-portrait-selector-overlay {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: var(--kof-cursor-scale, 168%);
+          height: var(--kof-cursor-scale, 168%);
+          pointer-events: none !important;
+          z-index: 10;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: visible !important;
+        }
+
+        .kof-portrait-selector-overlay img {
+          width: 100%;
+          height: 100%;
+          object-fit: fill;
+          image-rendering: pixelated;
+          image-rendering: -moz-crisp-edges;
+          image-rendering: crisp-edges;
+          pointer-events: none !important;
+          display: block;
+          transform-origin: center;
+        }
+
+        /* 1P Hover Pulse */
+        .kof-portrait-selector-overlay.is-hover-p1 img {
+          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.95));
+          animation: kofSelectorPulse 0.45s infinite alternate ease-in-out;
+        }
+
+        /* 2P Hover Pulse */
+        .kof-portrait-selector-overlay.is-hover-p2 img {
+          filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.95));
+          animation: kofSelectorPulse 0.45s infinite alternate ease-in-out;
+        }
+
+        /* Click / MouseDown Active State */
+        .kof-portrait-selector-overlay.is-click-p1 img,
+        .kof-portrait-selector-overlay.is-click-p2 img {
+          filter: brightness(1.3) drop-shadow(0 0 8px #ffffff);
+          transform: scale(0.96);
+          transform-origin: center;
+        }
+
+        @keyframes kofSelectorPulse {
+          0% {
+            transform: scale(1);
+          }
+          100% {
+            transform: scale(1.03);
+          }
         }
 
         .roster-card.is-blocked {
           cursor: not-allowed !important;
-          opacity: 0.36 !important;
-          filter: grayscale(80%) !important;
+          opacity: 0.35 !important;
+          filter: grayscale(85%) !important;
         }
         .roster-card.is-blocked:hover {
-          transform: none !important;
           border-color: rgba(239, 68, 68, 0.5) !important;
           box-shadow: none !important;
         }
@@ -679,14 +790,13 @@ export function RosterSelect({
 
             {/* Grid of Characters with Custom Cursors and Counterpart Block */}
             <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
-                gap: '0.65rem'
-              }}
+              className="roster-grid"
               onMouseDown={() => setIsMouseDown(true)}
               onMouseUp={() => setIsMouseDown(false)}
-              onMouseLeave={() => setIsMouseDown(false)}
+              onMouseLeave={() => {
+                setIsMouseDown(false);
+                setHoveredChar(null);
+              }}
             >
               {filteredChars.map((char) => {
                 const isSelectedInP1 = team1.some((c) => c?.id === char.id);
@@ -694,86 +804,97 @@ export function RosterSelect({
                 const charImg = CHARACTER_IMAGES[char.id];
                 const conflict = getConflictInfo(char);
 
-                // Determine cursor class
-                const cursorClass = conflict.isBlocked
-                  ? 'is-blocked'
-                  : activeTarget.team === 1
-                  ? 'p1-turn-cursor'
-                  : 'p2-turn-cursor';
+                const isHovered = hoveredChar?.id === char.id && !conflict.isBlocked;
+                const isCurrentP1 = activeTarget.team === 1;
+
+                // Determine active overlay frame ONLY when mouse is over (hover) or clicking (mousedown)
+                let overlayFrame = null;
+                let overlayStateClass = '';
+
+                if (isHovered) {
+                  if (isMouseDown) {
+                    overlayFrame = isCurrentP1 ? UI_ICONS.p1CursorSelect : UI_ICONS.p2CursorSelect;
+                    overlayStateClass = isCurrentP1 ? 'is-click-p1' : 'is-click-p2';
+                  } else {
+                    overlayFrame = isCurrentP1 ? UI_ICONS.p1Cursor : UI_ICONS.p2Cursor;
+                    overlayStateClass = isCurrentP1 ? 'is-hover-p1' : 'is-hover-p2';
+                  }
+                }
+
+                // Dynamic border and glow for the character portrait container
+                let portraitBorderColor = 'rgba(255, 255, 255, 0.12)';
+                let portraitBoxShadow = 'none';
+
+                if (isHovered) {
+                  portraitBorderColor = isCurrentP1 ? '#3b82f6' : '#ef4444';
+                  portraitBoxShadow = isCurrentP1
+                    ? '0 0 14px rgba(59, 130, 246, 0.85), inset 0 0 8px rgba(59, 130, 246, 0.35)'
+                    : '0 0 14px rgba(239, 68, 68, 0.85), inset 0 0 8px rgba(239, 68, 68, 0.35)';
+                } else if (isSelectedInP1 && !isSelectedInP2) {
+                  portraitBorderColor = '#3b82f6';
+                  portraitBoxShadow = '0 0 8px rgba(59, 130, 246, 0.5)';
+                } else if (isSelectedInP2 && !isSelectedInP1) {
+                  portraitBorderColor = '#ef4444';
+                  portraitBoxShadow = '0 0 8px rgba(239, 68, 68, 0.5)';
+                } else if (isSelectedInP1 && isSelectedInP2) {
+                  portraitBorderColor = '#a855f7';
+                  portraitBoxShadow = '0 0 8px rgba(168, 85, 247, 0.5)';
+                }
 
                 return (
                   <div
                     key={char.id}
-                    className={`roster-card ${cursorClass} ${isMouseDown ? 'clicking' : ''} ${isSelectedInP1 ? 'selected-p1' : ''} ${isSelectedInP2 ? 'selected-p2' : ''}`}
+                    className={`roster-card ${isSelectedInP1 ? 'selected-p1' : ''} ${isSelectedInP2 ? 'selected-p2' : ''} ${conflict.isBlocked ? 'is-blocked' : ''}`}
                     style={{
                       '--char-color': char.color,
                       '--char-glow': `${char.color}88`,
                       padding: '0.45rem',
                       borderRadius: '8px',
                       background: isSelectedInP1
-                        ? 'rgba(30, 58, 138, 0.4)'
+                        ? 'rgba(30, 58, 138, 0.45)'
                         : isSelectedInP2
-                        ? 'rgba(153, 27, 27, 0.4)'
-                        : conflict.isBlocked
-                        ? 'rgba(10, 10, 15, 0.5)'
-                        : 'rgba(13, 15, 24, 0.85)',
-                      border: isSelectedInP1
-                        ? '2px solid #3b82f6'
+                          ? 'rgba(153, 27, 27, 0.45)'
+                          : conflict.isBlocked
+                            ? 'rgba(10, 10, 15, 0.5)'
+                            : isHovered
+                              ? 'rgba(22, 28, 48, 0.95)'
+                              : 'rgba(13, 15, 24, 0.85)',
+                      borderColor: isSelectedInP1
+                        ? '#3b82f6'
                         : isSelectedInP2
-                        ? '2px solid #ef4444'
-                        : conflict.isBlocked
-                        ? '1px solid rgba(239, 68, 68, 0.3)'
-                        : '1px solid rgba(255, 255, 255, 0.1)',
+                          ? '#ef4444'
+                          : conflict.isBlocked
+                            ? 'rgba(239, 68, 68, 0.3)'
+                            : isHovered
+                              ? (isCurrentP1 ? 'rgba(59, 130, 246, 0.7)' : 'rgba(239, 68, 68, 0.7)')
+                              : 'rgba(255, 255, 255, 0.08)',
+                      boxShadow: isHovered
+                        ? (isCurrentP1 ? '0 0 16px rgba(59, 130, 246, 0.35)' : '0 0 16px rgba(239, 68, 68, 0.35)')
+                        : 'none',
                       position: 'relative',
+                      cursor: conflict.isBlocked ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
                     }}
                     onClick={() => handleCardClick(char)}
                     onMouseEnter={() => handleCardHover(char)}
-                    title={conflict.isBlocked ? conflict.reason : `${char.name} (${char.tier})`}
+                    title={
+                      conflict.isBlocked
+                        ? conflict.reason
+                        : conflict.isAlreadyInTeam
+                          ? `${char.name} (En equipo ${activeTarget.team}P) - Clic para deseleccionar`
+                          : `${char.name} (${char.tier}) - Clic para elegir`
+                    }
                   >
-                    {/* Visual Retro Player Cursor Indicator floating on hovered card */}
-                    {hoveredChar?.id === char.id && !conflict.isBlocked && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '-8px',
-                        left: '-8px',
-                        zIndex: 25,
-                        pointerEvents: 'none',
-                        animation: 'bounceCursor 0.4s infinite alternate ease-in-out'
-                      }}>
-                        <img
-                          src={
-                            isMouseDown
-                              ? activeTarget.team === 1
-                                ? UI_ICONS.p1CursorSelect
-                                : UI_ICONS.p2CursorSelect
-                              : activeTarget.team === 1
-                              ? UI_ICONS.p1Cursor
-                              : UI_ICONS.p2Cursor
-                          }
-                          alt="Cursor"
-                          style={{
-                            width: '26px',
-                            height: '26px',
-                            imageRendering: 'pixelated',
-                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.9))'
-                          }}
-                        />
-                      </div>
-                    )}
-
-                    {/* Character Sprite Image */}
-                    <div style={{
-                      width: '52px',
-                      height: '52px',
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.6) 100%)',
-                      border: `1px solid ${char.color || 'rgba(255,255,255,0.15)'}`,
-                      marginBottom: '0.35rem',
-                      overflow: 'hidden'
-                    }}>
+                    {/* PORTRAIT BOX (Container with position: relative, overflow: visible) */}
+                    <div
+                      className="kof-portrait-container"
+                      style={{
+                        borderColor: portraitBorderColor,
+                        boxShadow: portraitBoxShadow,
+                      }}
+                    >
                       {charImg ? (
                         <img
                           src={charImg}
@@ -782,15 +903,65 @@ export function RosterSelect({
                             width: '100%',
                             height: '100%',
                             objectFit: 'contain',
-                            imageRendering: 'pixelated'
+                            imageRendering: 'pixelated',
+                            borderRadius: '4px',
+                            pointerEvents: 'none',
                           }}
                         />
                       ) : (
-                        <span style={{ fontSize: '1.6rem' }}>{char.avatar}</span>
+                        <span style={{ fontSize: '1.8rem', pointerEvents: 'none' }}>{char.avatar}</span>
+                      )}
+
+                      {/* OVERLAID ARCADE SELECTOR FRAME (Appears ONLY on hover & click, 100% of portrait) */}
+                      {overlayFrame && (
+                        <div className={`kof-portrait-selector-overlay ${overlayStateClass}`}>
+                          <img
+                            src={overlayFrame}
+                            alt="Selector Arcade KOF '98"
+                          />
+                        </div>
+                      )}
+
+                      {/* Small Corner Badge when selected and not hovered */}
+                      {isSelectedInP1 && !isHovered && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: '2px',
+                          background: '#2563eb',
+                          color: '#fff',
+                          fontFamily: 'var(--font-arcade)',
+                          fontSize: '0.62rem',
+                          padding: '1px 3px',
+                          borderRadius: '2px',
+                          lineHeight: 1,
+                          zIndex: 8,
+                          boxShadow: '0 0 4px rgba(0,0,0,0.8)'
+                        }}>
+                          1P
+                        </span>
+                      )}
+                      {isSelectedInP2 && !isHovered && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '2px',
+                          right: '2px',
+                          background: '#dc2626',
+                          color: '#fff',
+                          fontFamily: 'var(--font-arcade)',
+                          fontSize: '0.62rem',
+                          padding: '1px 3px',
+                          borderRadius: '2px',
+                          lineHeight: 1,
+                          zIndex: 8,
+                          boxShadow: '0 0 4px rgba(0,0,0,0.8)'
+                        }}>
+                          2P
+                        </span>
                       )}
                     </div>
 
-                    {/* Character Name */}
+                    {/* Character Name (Outside portrait box, totally unhindered by overlay) */}
                     <span className="font-tech" style={{
                       fontSize: '0.78rem',
                       fontWeight: 700,
@@ -799,21 +970,34 @@ export function RosterSelect({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       maxWidth: '100%',
-                      display: 'block'
+                      display: 'block',
+                      pointerEvents: 'none',
                     }}>
                       {char.name.split(' ')[0]}
                     </span>
 
-                    {/* Tier or Conflict Badge */}
+                    {/* Tier or Conflict Badge (Outside portrait box) */}
                     {conflict.isBlocked ? (
                       <span style={{
                         fontSize: '0.58rem',
                         fontFamily: 'var(--font-tech)',
                         color: '#f87171',
                         fontWeight: 700,
-                        marginTop: '1px'
+                        marginTop: '1px',
+                        pointerEvents: 'none',
                       }}>
                         {conflict.badge}
+                      </span>
+                    ) : conflict.isAlreadyInTeam ? (
+                      <span style={{
+                        fontSize: '0.58rem',
+                        fontFamily: 'var(--font-tech)',
+                        color: '#60a5fa',
+                        fontWeight: 700,
+                        marginTop: '1px',
+                        pointerEvents: 'none',
+                      }}>
+                        EN EQUIPO
                       </span>
                     ) : (
                       <span style={{
@@ -821,43 +1005,10 @@ export function RosterSelect({
                         fontFamily: 'var(--font-tech)',
                         color: char.color,
                         fontWeight: 700,
-                        marginTop: '1px'
+                        marginTop: '1px',
+                        pointerEvents: 'none',
                       }}>
                         {char.tier}
-                      </span>
-                    )}
-
-                    {/* Selected Indicator Tags */}
-                    {isSelectedInP1 && (
-                      <span style={{
-                        position: 'absolute',
-                        top: '4px',
-                        left: '4px',
-                        background: '#3b82f6',
-                        color: '#fff',
-                        fontFamily: 'var(--font-arcade)',
-                        fontSize: '0.65rem',
-                        padding: '1px 3px',
-                        borderRadius: '2px',
-                        lineHeight: 1
-                      }}>
-                        1P
-                      </span>
-                    )}
-                    {isSelectedInP2 && (
-                      <span style={{
-                        position: 'absolute',
-                        top: '4px',
-                        right: '4px',
-                        background: '#ef4444',
-                        color: '#fff',
-                        fontFamily: 'var(--font-arcade)',
-                        fontSize: '0.65rem',
-                        padding: '1px 3px',
-                        borderRadius: '2px',
-                        lineHeight: 1
-                      }}>
-                        2P
                       </span>
                     )}
                   </div>
