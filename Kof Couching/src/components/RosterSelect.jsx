@@ -23,9 +23,13 @@ export function RosterSelect({
   });
 
   const [hoveredChar, setHoveredChar] = useState(null);
+  const [lastClickedChar, setLastClickedChar] = useState(null);
   const [tierFilter, setTierFilter] = useState('ALL');
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [conflictToast, setConflictToast] = useState(null);
+
+  // Active character to show in the inspector (hover preview takes precedence over pinned clicked character)
+  const activeInspectChar = hoveredChar || lastClickedChar;
 
   // Global mouseup to guarantee mouse drag never leaves isMouseDown stuck
   useEffect(() => {
@@ -89,6 +93,9 @@ export function RosterSelect({
   });
 
   const handleCardClick = (char) => {
+    // Retain this character in the inspector upon click
+    setLastClickedChar(char);
+
     // 1. Check if clicked character is ALREADY in the active drafting team:
     // If so, DESELECT it!
     const currentTeam = activeTarget.team === 1 ? team1 : team2;
@@ -145,6 +152,10 @@ export function RosterSelect({
   const handleSlotClick = (teamNum, slotIdx) => {
     arcadeAudio.playHover();
     setActiveTarget({ team: teamNum, slot: slotIdx });
+    const charInSlot = (teamNum === 1 ? team1 : team2)[slotIdx];
+    if (charInSlot) {
+      setLastClickedChar(charInSlot);
+    }
   };
 
   const handleCardHover = (char) => {
@@ -392,13 +403,35 @@ export function RosterSelect({
   const p2FilledCount = team2.filter(Boolean).length;
 
   return (
-    <section id="simulator" style={{ padding: '3rem 0', position: 'relative' }}>
+    <section
+      id="simulator"
+      style={{ padding: '3rem 0', position: 'relative' }}
+      onMouseLeave={() => {
+        setHoveredChar(null);
+        setLastClickedChar(null);
+        setIsMouseDown(false);
+      }}
+    >
       {/* KOF '98 Arcade Selector & Portrait System */}
       <style>{`
         :root {
           /* Tamaño y posicionamiento del cuadro del retrato KOF '98 */
           --kof-portrait-size: 68px;
           --kof-cursor-scale: 168%; /* Escala arcade para abrazar las esquinas y sobresalir como en KOF '98 */
+        }
+
+        /* Contenedor de grilla + panel inspector: columnas estables y fijas (Opción 1) */
+        .roster-layout-container {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 340px;
+          gap: 1.5rem;
+          align-items: start;
+        }
+
+        @media (max-width: 1023px) {
+          .roster-layout-container {
+            grid-template-columns: 1fr;
+          }
         }
 
         .roster-grid {
@@ -583,6 +616,8 @@ export function RosterSelect({
               onClick={() => {
                 arcadeAudio.playDeselect();
                 onClearTeams();
+                setLastClickedChar(null);
+                setHoveredChar(null);
               }}
               title="Vaciar todos los recuadros de ambos equipos"
             >
@@ -723,13 +758,8 @@ export function RosterSelect({
           </div>
         </div>
 
-        {/* Character Roster Grid & Real-time Hover Inspect */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: hoveredChar ? '1fr 340px' : '1fr',
-          gap: '1.5rem',
-          alignItems: 'start'
-        }}>
+        {/* Character Roster Grid & Real-time Hover Inspect (Fixed stable layout) */}
+        <div className="roster-layout-container">
           {/* Roster Container */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
             {/* Filter Tabs & Drafting Target Status */}
@@ -1017,32 +1047,32 @@ export function RosterSelect({
             </div>
           </div>
 
-          {/* Hover Character Detail Card / Inspector */}
-          {hoveredChar && (
+          {/* Hover / Clicked Character Detail Card / Inspector (Permanent column, non-sticky aligned with grid) */}
+          {activeInspectChar ? (
             <div className="glass-panel" style={{
               padding: '1.5rem',
-              border: `1px solid ${hoveredChar.color}`,
-              boxShadow: `0 0 25px ${hoveredChar.color}40`,
-              position: 'sticky',
-              top: '5rem'
+              border: `1px solid ${activeInspectChar.color}`,
+              boxShadow: `0 0 25px ${activeInspectChar.color}40`,
+              position: 'relative',
+              transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                 <div style={{
                   width: '74px',
                   height: '74px',
                   borderRadius: '10px',
-                  background: hoveredChar.portraitBg,
+                  background: activeInspectChar.portraitBg,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: `2px solid ${hoveredChar.color}`,
+                  border: `2px solid ${activeInspectChar.color}`,
                   overflow: 'hidden',
                   flexShrink: 0
                 }}>
-                  {CHARACTER_IMAGES[hoveredChar.id] ? (
+                  {CHARACTER_IMAGES[activeInspectChar.id] ? (
                     <img
-                      src={CHARACTER_IMAGES[hoveredChar.id]}
-                      alt={hoveredChar.name}
+                      src={CHARACTER_IMAGES[activeInspectChar.id]}
+                      alt={activeInspectChar.name}
                       style={{
                         width: '100%',
                         height: '100%',
@@ -1051,24 +1081,35 @@ export function RosterSelect({
                       }}
                     />
                   ) : (
-                    <span style={{ fontSize: '2.5rem' }}>{hoveredChar.avatar}</span>
+                    <span style={{ fontSize: '2.5rem' }}>{activeInspectChar.avatar}</span>
                   )}
                 </div>
                 <div>
-                  <div className="badge-arcade" style={{ fontSize: '0.65rem', marginBottom: '0.2rem' }}>
-                    TIER {hoveredChar.tier} • {hoveredChar.archetype}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
+                    <span className="badge-arcade" style={{ fontSize: '0.65rem' }}>
+                      TIER {activeInspectChar.tier} • {activeInspectChar.archetype}
+                    </span>
+                    {hoveredChar?.id === activeInspectChar.id ? (
+                      <span className="badge-arcade" style={{ fontSize: '0.6rem', background: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', color: '#60a5fa' }}>
+                        HOVER
+                      </span>
+                    ) : (
+                      <span className="badge-arcade" style={{ fontSize: '0.6rem', background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24' }}>
+                        CLIC FIJADO
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-arcade" style={{ fontSize: '2rem', color: '#fff', lineHeight: 1 }}>
-                    {hoveredChar.name}
+                    {activeInspectChar.name}
                   </h3>
-                  <div style={{ fontSize: '0.8rem', color: hoveredChar.color }}>
-                    "{hoveredChar.title}"
+                  <div style={{ fontSize: '0.8rem', color: activeInspectChar.color }}>
+                    "{activeInspectChar.title}"
                   </div>
                 </div>
               </div>
 
               {/* Counterpart info if Orochi character */}
-              {OROCHI_COUNTERPARTS[hoveredChar.id] && (
+              {OROCHI_COUNTERPARTS[activeInspectChar.id] && (
                 <div style={{
                   background: 'rgba(168, 85, 247, 0.15)',
                   border: '1px solid rgba(168, 85, 247, 0.3)',
@@ -1083,7 +1124,7 @@ export function RosterSelect({
                 }}>
                   <AlertTriangle size={14} color="#c084fc" />
                   <span>
-                    Tiene contraparte ({CHARACTERS.find((c) => c.id === OROCHI_COUNTERPARTS[hoveredChar.id])?.name}). No seleccionables juntos.
+                    Tiene contraparte ({CHARACTERS.find((c) => c.id === OROCHI_COUNTERPARTS[activeInspectChar.id])?.name}). No seleccionables juntos.
                   </span>
                 </div>
               )}
@@ -1098,33 +1139,33 @@ export function RosterSelect({
               }}>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>GOLPE O SÚPER CLAVE:</div>
                 <div className="font-tech" style={{ fontSize: '0.9rem', color: '#fbbf24', fontWeight: 600 }}>
-                  {hoveredChar.signatureMove}
+                  {activeInspectChar.signatureMove}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.4rem' }}>POSICIÓN ÓPTIMA:</div>
                 <div className="font-tech" style={{ fontSize: '0.85rem', color: '#38bdf8' }}>
-                  {hoveredChar.role}
+                  {activeInspectChar.role}
                 </div>
               </div>
 
               {/* Radar stats */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '1.25rem' }}>
                 {[
-                  { label: 'Juego Neutral & Pokes', val: hoveredChar.stats.neutral },
-                  { label: 'Daño & Castigos (Combos)', val: hoveredChar.stats.damage },
-                  { label: 'Poder sin Barra (Point)', val: hoveredChar.stats.meterless },
-                  { label: 'Antiaéreos & Reversals', val: hoveredChar.stats.antiAir },
-                  { label: 'Apertura de Guardia / Mixup', val: hoveredChar.stats.mixup },
+                  { label: 'Juego Neutral & Pokes', val: activeInspectChar.stats.neutral },
+                  { label: 'Daño & Castigos (Combos)', val: activeInspectChar.stats.damage },
+                  { label: 'Poder sin Barra (Point)', val: activeInspectChar.stats.meterless },
+                  { label: 'Antiaéreos & Reversals', val: activeInspectChar.stats.antiAir },
+                  { label: 'Apertura de Guardia / Mixup', val: activeInspectChar.stats.mixup },
                 ].map((st, i) => (
                   <div key={i}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#cbd5e1' }}>
                       <span>{st.label}</span>
-                      <strong style={{ color: hoveredChar.color }}>{st.val}</strong>
+                      <strong style={{ color: activeInspectChar.color }}>{st.val}</strong>
                     </div>
                     <div style={{ height: '5px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden', marginTop: '2px' }}>
                       <div style={{
                         width: `${st.val}%`,
                         height: '100%',
-                        background: hoveredChar.color,
+                        background: activeInspectChar.color,
                         borderRadius: '3px'
                       }} />
                     </div>
@@ -1143,7 +1184,113 @@ export function RosterSelect({
                 <strong style={{ color: '#ff8593', display: 'block', marginBottom: '0.2rem' }}>
                   Consejo del Coach:
                 </strong>
-                {hoveredChar.coachAdvice}
+                {activeInspectChar.coachAdvice}
+              </div>
+            </div>
+          ) : (
+            /* Standby Neutral Arcade Inspector Panel (Aligned with grid, non-sticky) */
+            <div className="glass-panel" style={{
+              padding: '1.5rem',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+              position: 'relative',
+              minHeight: '440px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Sparkles size={18} color="#60a5fa" />
+                  </div>
+                  <div>
+                    <span className="badge-arcade" style={{ fontSize: '0.62rem', color: '#60a5fa' }}>
+                      ANÁLISIS TÁCTICO
+                    </span>
+                    <h3 className="font-arcade" style={{ fontSize: '1.4rem', color: '#fff', lineHeight: 1, marginTop: '2px' }}>
+                      INSPECTOR DE LUCHADORES
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Arcade Radar Visual Box */}
+                <div style={{
+                  background: 'radial-gradient(circle, rgba(30, 58, 138, 0.2) 0%, rgba(9, 10, 15, 0.8) 100%)',
+                  border: '1px dashed rgba(59, 130, 246, 0.3)',
+                  borderRadius: '10px',
+                  padding: '1.5rem 1rem',
+                  textAlign: 'center',
+                  marginBottom: '1.25rem'
+                }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    margin: '0 auto 0.75rem',
+                    borderRadius: '50%',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '2px solid rgba(59, 130, 246, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 15px rgba(59, 130, 246, 0.2)'
+                  }}>
+                    <Users size={28} color="#93c5fd" />
+                  </div>
+                  <p className="font-tech" style={{ fontSize: '0.88rem', color: '#f8fafc', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    PASA EL CURSOR SOBRE UN LUCHADOR
+                  </p>
+                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4, margin: 0 }}>
+                    Explora en tiempo real el <strong>Tier</strong>, <strong>Golpes Clave</strong>, <strong>Rol Óptimo</strong> (Point/Mid/Anchor) y <strong>Consejos del Coach</strong> de cada personaje.
+                  </p>
+                </div>
+
+                {/* Target Slot Status inside Inspector */}
+                <div style={{
+                  background: 'rgba(0, 0, 0, 0.35)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  borderRadius: '8px',
+                  padding: '0.85rem',
+                  marginBottom: '1rem'
+                }}>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+                    Objetivo de Selección Actual:
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <img
+                      src={activeTarget.team === 1 ? UI_ICONS.p1Cursor : UI_ICONS.p2Cursor}
+                      alt=""
+                      style={{ width: '18px', height: '18px', imageRendering: 'pixelated' }}
+                    />
+                    <span className="font-arcade" style={{ fontSize: '1.1rem', color: activeTarget.team === 1 ? '#60a5fa' : '#f87171' }}>
+                      EQUIPO {activeTarget.team}P • {slotLabels[activeTarget.slot].title}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '0.25rem' }}>
+                    {slotLabels[activeTarget.slot].roleDesc}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pro-Tip Footer */}
+              <div style={{
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                paddingTop: '0.75rem',
+                fontSize: '0.76rem',
+                color: '#94a3b8',
+                lineHeight: 1.4
+              }}>
+                <strong style={{ color: '#fbbf24' }}>💡 Regla Arcade KOF '98:</strong> Las versiones Orochi de Chris, Yashiro y Shermie se bloquean automáticamente si su contraparte ya está en el equipo.
               </div>
             </div>
           )}
