@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { CHARACTERS, TEAM_PRESETS, OROCHI_COUNTERPARTS } from '../data/characters';
+import { MOVES_DATA } from '../data/movesData';
 import { CHARACTER_IMAGES, UI_ICONS } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
-import { Users, X, Shuffle, Sparkles, Plus, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Users, X, Shuffle, Sparkles, Plus, AlertTriangle, ShieldAlert, ArrowLeft, ArrowRight, RotateCw, BarChart2, Zap } from 'lucide-react';
 
 export function RosterSelect({
   team1,
   team2,
   onSelectCharacter,
   onRemoveCharacter,
+  onSwapSlots,
+  onRotateTeam,
   onApplyPreset,
   onRandomize,
   onClearTeams,
@@ -30,12 +33,42 @@ export function RosterSelect({
 
   // Active character to show in the inspector (hover preview takes precedence over pinned clicked character)
   const activeInspectChar = hoveredChar || lastClickedChar;
+  // Tab for inspector view: 'data' (stats & coach tips) or 'moves' (command list & supers)
+  const [inspectTab, setInspectTab] = useState('data');
 
   // Global mouseup to guarantee mouse drag never leaves isMouseDown stuck
   useEffect(() => {
     const handleGlobalMouseUp = () => setIsMouseDown(false);
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
+  // Reset pinned and hovered character ONLY when the simulator section is completely off-screen (0% visible)
+  useEffect(() => {
+    const section = document.getElementById('simulator');
+    if (!section) return;
+
+    let hasBeenVisible = false;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            hasBeenVisible = true;
+          } else if (hasBeenVisible) {
+            // Only resets to default standby when user had the section in view and then completely scrolled away
+            setHoveredChar(null);
+            setLastClickedChar(null);
+          }
+        });
+      },
+      {
+        threshold: 0, // Triggers strictly when 0% of the section is visible in viewport
+      }
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
   }, []);
 
   const slotLabels = [
@@ -236,7 +269,7 @@ export function RosterSelect({
           </div>
         )}
 
-        {/* Slot Header Label */}
+        {/* Slot Header Label & Quick Shift Controls */}
         <div style={{
           width: '100%',
           display: 'flex',
@@ -249,31 +282,61 @@ export function RosterSelect({
           <span className="font-tech" style={{ fontSize: '0.75rem', fontWeight: 700, color: meta.color }}>
             {meta.title}
           </span>
-          {char && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                arcadeAudio.playDeselect();
-                onRemoveCharacter(teamNum, slotIdx);
-              }}
-              style={{
-                background: 'rgba(239, 68, 68, 0.2)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                borderRadius: '4px',
-                color: '#f87171',
-                cursor: 'pointer',
-                padding: '2px 4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1
-              }}
-              title="Vaciar este recuadro"
-            >
-              <X size={12} />
-            </button>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            {slotIdx > 0 && (
+              <button
+                type="button"
+                className="slot-swap-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  arcadeAudio.playSelect();
+                  onSwapSlots?.(teamNum, slotIdx, slotIdx - 1);
+                }}
+                title={`Mover hacia la izquierda (Intercambiar con ${slotLabels[slotIdx - 1].title.split(' ')[0]})`}
+              >
+                <ArrowLeft size={11} />
+              </button>
+            )}
+            {slotIdx < 2 && (
+              <button
+                type="button"
+                className="slot-swap-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  arcadeAudio.playSelect();
+                  onSwapSlots?.(teamNum, slotIdx, slotIdx + 1);
+                }}
+                title={`Mover hacia la derecha (Intercambiar con ${slotLabels[slotIdx + 1].title.split(' ')[0]})`}
+              >
+                <ArrowRight size={11} />
+              </button>
+            )}
+            {char && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  arcadeAudio.playDeselect();
+                  onRemoveCharacter(teamNum, slotIdx);
+                }}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '4px',
+                  color: '#f87171',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1
+                }}
+                title="Vaciar este recuadro"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Slot Body: Filled Character or Empty Placeholder */}
@@ -395,6 +458,41 @@ export function RosterSelect({
         }}>
           {char ? char.archetype.split('/')[0] : 'Haz click para asignar'}
         </div>
+
+        {/* Quick Direct Swap Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '4px',
+          marginTop: '0.3rem',
+          paddingTop: '0.3rem',
+          borderTop: '1px dashed rgba(255, 255, 255, 0.08)',
+          width: '100%'
+        }}>
+          <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 600 }}>
+            CAMBIAR:
+          </span>
+          {[0, 1, 2].filter((idx) => idx !== slotIdx).map((targetIdx) => {
+            const targetName = targetIdx === 0 ? '1º' : targetIdx === 1 ? '2º' : '3º';
+            const targetRole = targetIdx === 0 ? 'POINT' : targetIdx === 1 ? 'MID' : 'ANCHOR';
+            return (
+              <button
+                key={targetIdx}
+                type="button"
+                className="slot-swap-tag-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  arcadeAudio.playSelect();
+                  onSwapSlots?.(teamNum, slotIdx, targetIdx);
+                }}
+                title={`Intercambiar lugar con ${targetRole} (${targetName})`}
+              >
+                ↔ {targetName}
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -407,8 +505,6 @@ export function RosterSelect({
       id="simulator"
       style={{ padding: '3rem 0', position: 'relative' }}
       onMouseLeave={() => {
-        setHoveredChar(null);
-        setLastClickedChar(null);
         setIsMouseDown(false);
       }}
     >
@@ -538,6 +634,63 @@ export function RosterSelect({
         .roster-card.is-blocked:hover {
           border-color: rgba(239, 68, 68, 0.5) !important;
           box-shadow: none !important;
+        }
+
+        /* Micro-botones de intercambio de lugar en recuadros de equipo */
+        .slot-swap-btn {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 4px;
+          color: #cbd5e1;
+          cursor: pointer;
+          padding: 2px 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          transition: all 0.15s ease;
+        }
+        .slot-swap-btn:hover {
+          background: rgba(59, 130, 246, 0.3);
+          border-color: #60a5fa;
+          color: #ffffff;
+          transform: translateY(-1px);
+        }
+        .slot-swap-tag-btn {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 3px;
+          color: #94a3b8;
+          cursor: pointer;
+          font-family: var(--font-tech, monospace);
+          font-size: 0.62rem;
+          font-weight: 700;
+          padding: 1px 5px;
+          line-height: 1.2;
+          transition: all 0.15s ease;
+        }
+        .slot-swap-tag-btn:hover {
+          background: rgba(59, 130, 246, 0.25);
+          border-color: #60a5fa;
+          color: #93c5fd;
+          box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
+          transform: translateY(-1px);
+        }
+
+        /* Scrollbar suave para la lista de movimientos del inspector */
+        .moves-scroll-container::-webkit-scrollbar {
+          width: 5px;
+        }
+        .moves-scroll-container::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 4px;
+        }
+        .moves-scroll-container::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 4px;
+        }
+        .moves-scroll-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.4);
         }
       `}</style>
 
@@ -678,31 +831,56 @@ export function RosterSelect({
               justifyContent: 'space-between',
               marginBottom: '1rem',
               paddingBottom: '0.75rem',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              flexWrap: 'wrap',
+              gap: '0.5rem'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <img src={UI_ICONS.p1Cursor} alt="P1" style={{ width: '20px', height: '20px', imageRendering: 'pixelated' }} />
                 <span className="font-arcade" style={{ fontSize: '1.8rem', color: '#60a5fa', lineHeight: 1 }}>1P TEAM</span>
                 <span className="badge-cyan" style={{ fontSize: '0.7rem' }}>TU EQUIPO ({p1FilledCount}/3)</span>
               </div>
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={() => {
-                  arcadeAudio.playCoin();
-                  const firstEmpty = team1.findIndex((c) => !c);
-                  setActiveTarget({ team: 1, slot: firstEmpty !== -1 ? firstEmpty : 0 });
-                }}
-                style={{
-                  fontSize: '0.8rem',
-                  padding: '0.35rem 0.8rem',
-                  background: activeTarget.team === 1 ? '#2563eb' : 'transparent',
-                  color: activeTarget.team === 1 ? '#fff' : '#94a3b8',
-                  borderColor: activeTarget.team === 1 ? '#60a5fa' : 'rgba(255,255,255,0.1)'
-                }}
-              >
-                {activeTarget.team === 1 ? 'Drafteando Aquí...' : 'Seleccionar para 1P'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    arcadeAudio.playSelect();
+                    onRotateTeam?.(1);
+                  }}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.35rem 0.65rem',
+                    color: '#93c5fd',
+                    borderColor: 'rgba(59, 130, 246, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Rotar posiciones del equipo: Point (1º) → Mid (2º) → Anchor (3º)"
+                >
+                  <RotateCw size={12} />
+                  <span>Rotar Orden</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    arcadeAudio.playCoin();
+                    const firstEmpty = team1.findIndex((c) => !c);
+                    setActiveTarget({ team: 1, slot: firstEmpty !== -1 ? firstEmpty : 0 });
+                  }}
+                  style={{
+                    fontSize: '0.8rem',
+                    padding: '0.35rem 0.8rem',
+                    background: activeTarget.team === 1 ? '#2563eb' : 'transparent',
+                    color: activeTarget.team === 1 ? '#fff' : '#94a3b8',
+                    borderColor: activeTarget.team === 1 ? '#60a5fa' : 'rgba(255,255,255,0.1)'
+                  }}
+                >
+                  {activeTarget.team === 1 ? 'Drafteando Aquí...' : 'Seleccionar para 1P'}
+                </button>
+              </div>
             </div>
 
             {/* 3 Slots for Team 1 */}
@@ -724,31 +902,56 @@ export function RosterSelect({
               justifyContent: 'space-between',
               marginBottom: '1rem',
               paddingBottom: '0.75rem',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              flexWrap: 'wrap',
+              gap: '0.5rem'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <img src={UI_ICONS.p2Cursor} alt="P2" style={{ width: '20px', height: '20px', imageRendering: 'pixelated' }} />
                 <span className="font-arcade" style={{ fontSize: '1.8rem', color: '#f87171', lineHeight: 1 }}>2P TEAM</span>
                 <span className="badge-arcade" style={{ fontSize: '0.7rem' }}>RIVAL ({p2FilledCount}/3)</span>
               </div>
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={() => {
-                  arcadeAudio.playCoin();
-                  const firstEmpty = team2.findIndex((c) => !c);
-                  setActiveTarget({ team: 2, slot: firstEmpty !== -1 ? firstEmpty : 0 });
-                }}
-                style={{
-                  fontSize: '0.8rem',
-                  padding: '0.35rem 0.8rem',
-                  background: activeTarget.team === 2 ? '#dc2626' : 'transparent',
-                  color: activeTarget.team === 2 ? '#fff' : '#94a3b8',
-                  borderColor: activeTarget.team === 2 ? '#ef4444' : 'rgba(255,255,255,0.1)'
-                }}
-              >
-                {activeTarget.team === 2 ? 'Drafteando Aquí...' : 'Seleccionar para 2P'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    arcadeAudio.playSelect();
+                    onRotateTeam?.(2);
+                  }}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.35rem 0.65rem',
+                    color: '#fca5a5',
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Rotar posiciones del equipo rival: Point (1º) → Mid (2º) → Anchor (3º)"
+                >
+                  <RotateCw size={12} />
+                  <span>Rotar Orden</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    arcadeAudio.playCoin();
+                    const firstEmpty = team2.findIndex((c) => !c);
+                    setActiveTarget({ team: 2, slot: firstEmpty !== -1 ? firstEmpty : 0 });
+                  }}
+                  style={{
+                    fontSize: '0.8rem',
+                    padding: '0.35rem 0.8rem',
+                    background: activeTarget.team === 2 ? '#dc2626' : 'transparent',
+                    color: activeTarget.team === 2 ? '#fff' : '#94a3b8',
+                    borderColor: activeTarget.team === 2 ? '#ef4444' : 'rgba(255,255,255,0.1)'
+                  }}
+                >
+                  {activeTarget.team === 2 ? 'Drafteando Aquí...' : 'Seleccionar para 2P'}
+                </button>
+              </div>
             </div>
 
             {/* 3 Slots for Team 2 */}
@@ -1048,146 +1251,420 @@ export function RosterSelect({
           </div>
 
           {/* Hover / Clicked Character Detail Card / Inspector (Permanent column, non-sticky aligned with grid) */}
-          {activeInspectChar ? (
-            <div className="glass-panel" style={{
-              padding: '1.5rem',
-              border: `1px solid ${activeInspectChar.color}`,
-              boxShadow: `0 0 25px ${activeInspectChar.color}40`,
-              position: 'relative',
-              transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '74px',
-                  height: '74px',
-                  borderRadius: '10px',
-                  background: activeInspectChar.portraitBg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `2px solid ${activeInspectChar.color}`,
-                  overflow: 'hidden',
-                  flexShrink: 0
-                }}>
-                  {CHARACTER_IMAGES[activeInspectChar.id] ? (
-                    <img
-                      src={CHARACTER_IMAGES[activeInspectChar.id]}
-                      alt={activeInspectChar.name}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        imageRendering: 'pixelated'
-                      }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: '2.5rem' }}>{activeInspectChar.avatar}</span>
-                  )}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
-                    <span className="badge-arcade" style={{ fontSize: '0.65rem' }}>
-                      TIER {activeInspectChar.tier} • {activeInspectChar.archetype}
-                    </span>
-                    {hoveredChar?.id === activeInspectChar.id ? (
-                      <span className="badge-arcade" style={{ fontSize: '0.6rem', background: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', color: '#60a5fa' }}>
-                        HOVER
-                      </span>
+          {activeInspectChar ? (() => {
+            const charMoves = MOVES_DATA[activeInspectChar.id] || { commandNormals: [], specialMoves: [], desperationMoves: [] };
+            return (
+              <div className="glass-panel" style={{
+                padding: '1.25rem',
+                border: `1px solid ${activeInspectChar.color}`,
+                boxShadow: `0 0 25px ${activeInspectChar.color}40`,
+                position: 'relative',
+                transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '0.85rem' }}>
+                  <div style={{
+                    width: '70px',
+                    height: '70px',
+                    borderRadius: '10px',
+                    background: activeInspectChar.portraitBg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `2px solid ${activeInspectChar.color}`,
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+                    {CHARACTER_IMAGES[activeInspectChar.id] ? (
+                      <img
+                        src={CHARACTER_IMAGES[activeInspectChar.id]}
+                        alt={activeInspectChar.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          imageRendering: 'pixelated'
+                        }}
+                      />
                     ) : (
-                      <span className="badge-arcade" style={{ fontSize: '0.6rem', background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24' }}>
-                        CLIC FIJADO
-                      </span>
+                      <span style={{ fontSize: '2.5rem' }}>{activeInspectChar.avatar}</span>
                     )}
                   </div>
-                  <h3 className="font-arcade" style={{ fontSize: '2rem', color: '#fff', lineHeight: 1 }}>
-                    {activeInspectChar.name}
-                  </h3>
-                  <div style={{ fontSize: '0.8rem', color: activeInspectChar.color }}>
-                    "{activeInspectChar.title}"
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
+                      <span className="badge-arcade" style={{ fontSize: '0.65rem' }}>
+                        TIER {activeInspectChar.tier} • {activeInspectChar.archetype}
+                      </span>
+                      {hoveredChar?.id === activeInspectChar.id ? (
+                        <span className="badge-arcade" style={{ fontSize: '0.6rem', background: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', color: '#60a5fa' }}>
+                          HOVER
+                        </span>
+                      ) : (
+                        <span className="badge-arcade" style={{ fontSize: '0.6rem', background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24' }}>
+                          CLIC FIJADO
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-arcade" style={{ fontSize: '1.85rem', color: '#fff', lineHeight: 1 }}>
+                      {activeInspectChar.name}
+                    </h3>
+                    <div style={{ fontSize: '0.78rem', color: activeInspectChar.color }}>
+                      "{activeInspectChar.title}"
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Counterpart info if Orochi character */}
-              {OROCHI_COUNTERPARTS[activeInspectChar.id] && (
+                {/* Counterpart info if Orochi character */}
+                {OROCHI_COUNTERPARTS[activeInspectChar.id] && (
+                  <div style={{
+                    background: 'rgba(168, 85, 247, 0.15)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    borderRadius: '6px',
+                    padding: '0.45rem 0.65rem',
+                    fontSize: '0.75rem',
+                    color: '#e9d5ff',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <AlertTriangle size={14} color="#c084fc" />
+                    <span>
+                      Tiene contraparte ({CHARACTERS.find((c) => c.id === OROCHI_COUNTERPARTS[activeInspectChar.id])?.name}). No seleccionables juntos.
+                    </span>
+                  </div>
+                )}
+
+                {/* Mode Switch Button / Tabs: Datos & Consejos vs Lista de Movimientos */}
                 <div style={{
-                  background: 'rgba(168, 85, 247, 0.15)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
-                  borderRadius: '6px',
-                  padding: '0.5rem 0.75rem',
-                  fontSize: '0.78rem',
-                  color: '#e9d5ff',
-                  marginBottom: '0.75rem',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
+                  gap: '0.4rem',
+                  marginBottom: '0.85rem',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  padding: '3px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(255, 255, 255, 0.08)'
                 }}>
-                  <AlertTriangle size={14} color="#c084fc" />
-                  <span>
-                    Tiene contraparte ({CHARACTERS.find((c) => c.id === OROCHI_COUNTERPARTS[activeInspectChar.id])?.name}). No seleccionables juntos.
-                  </span>
-                </div>
-              )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      arcadeAudio.playSelect();
+                      setInspectTab('data');
+                    }}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      padding: '0.38rem 0.5rem',
+                      borderRadius: '4px',
+                      border: 'none',
+                      fontSize: '0.73rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: inspectTab === 'data' ? (activeInspectChar.color || '#3b82f6') : 'transparent',
+                      color: inspectTab === 'data' ? '#ffffff' : '#94a3b8',
+                      boxShadow: inspectTab === 'data' ? `0 0 10px ${activeInspectChar.color || '#3b82f6'}60` : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <BarChart2 size={13} />
+                    <span>Datos & Consejos</span>
+                  </button>
 
-              {/* Signature move & recommended slot */}
-              <div style={{
-                background: 'rgba(0,0,0,0.4)',
-                borderRadius: '8px',
-                padding: '0.75rem',
-                marginBottom: '1rem',
-                border: '1px solid rgba(255,255,255,0.06)'
-              }}>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>GOLPE O SÚPER CLAVE:</div>
-                <div className="font-tech" style={{ fontSize: '0.9rem', color: '#fbbf24', fontWeight: 600 }}>
-                  {activeInspectChar.signatureMove}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      arcadeAudio.playSelect();
+                      setInspectTab('moves');
+                    }}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      padding: '0.38rem 0.5rem',
+                      borderRadius: '4px',
+                      border: 'none',
+                      fontSize: '0.73rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: inspectTab === 'moves' ? (activeInspectChar.color || '#3b82f6') : 'transparent',
+                      color: inspectTab === 'moves' ? '#ffffff' : '#94a3b8',
+                      boxShadow: inspectTab === 'moves' ? `0 0 10px ${activeInspectChar.color || '#3b82f6'}60` : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Zap size={13} />
+                    <span>Movimientos & DMs</span>
+                  </button>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.4rem' }}>POSICIÓN ÓPTIMA:</div>
-                <div className="font-tech" style={{ fontSize: '0.85rem', color: '#38bdf8' }}>
-                  {activeInspectChar.role}
-                </div>
-              </div>
 
-              {/* Radar stats */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '1.25rem' }}>
-                {[
-                  { label: 'Juego Neutral & Pokes', val: activeInspectChar.stats.neutral },
-                  { label: 'Daño & Castigos (Combos)', val: activeInspectChar.stats.damage },
-                  { label: 'Poder sin Barra (Point)', val: activeInspectChar.stats.meterless },
-                  { label: 'Antiaéreos & Reversals', val: activeInspectChar.stats.antiAir },
-                  { label: 'Apertura de Guardia / Mixup', val: activeInspectChar.stats.mixup },
-                ].map((st, i) => (
-                  <div key={i}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#cbd5e1' }}>
-                      <span>{st.label}</span>
-                      <strong style={{ color: activeInspectChar.color }}>{st.val}</strong>
+                {inspectTab === 'data' ? (
+                  <>
+                    {/* Signature move & recommended slot */}
+                    <div style={{
+                      background: 'rgba(0,0,0,0.4)',
+                      borderRadius: '8px',
+                      padding: '0.65rem',
+                      marginBottom: '0.85rem',
+                      border: '1px solid rgba(255,255,255,0.06)'
+                    }}>
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>GOLPE O SÚPER CLAVE:</div>
+                      <div className="font-tech" style={{ fontSize: '0.88rem', color: '#fbbf24', fontWeight: 600 }}>
+                        {activeInspectChar.signatureMove}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.35rem' }}>POSICIÓN ÓPTIMA:</div>
+                      <div className="font-tech" style={{ fontSize: '0.82rem', color: '#38bdf8' }}>
+                        {activeInspectChar.role}
+                      </div>
                     </div>
-                    <div style={{ height: '5px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden', marginTop: '2px' }}>
-                      <div style={{
-                        width: `${st.val}%`,
-                        height: '100%',
-                        background: activeInspectChar.color,
-                        borderRadius: '3px'
-                      }} />
+
+                    {/* Radar stats */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
+                      {[
+                        { label: 'Juego Neutral & Pokes', val: activeInspectChar.stats.neutral },
+                        { label: 'Daño & Castigos (Combos)', val: activeInspectChar.stats.damage },
+                        { label: 'Poder sin Barra (Point)', val: activeInspectChar.stats.meterless },
+                        { label: 'Antiaéreos & Reversals', val: activeInspectChar.stats.antiAir },
+                        { label: 'Apertura de Guardia / Mixup', val: activeInspectChar.stats.mixup },
+                      ].map((st, i) => (
+                        <div key={i}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', color: '#cbd5e1' }}>
+                            <span>{st.label}</span>
+                            <strong style={{ color: activeInspectChar.color }}>{st.val}</strong>
+                          </div>
+                          <div style={{ height: '5px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden', marginTop: '2px' }}>
+                            <div style={{
+                              width: `${st.val}%`,
+                              height: '100%',
+                              background: activeInspectChar.color,
+                              borderRadius: '3px'
+                            }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Coach Tip Snippet */}
+                    <div style={{
+                      fontSize: '0.78rem',
+                      color: '#cbd5e1',
+                      lineHeight: 1.45,
+                      borderTop: '1px solid rgba(255,255,255,0.1)',
+                      paddingTop: '0.65rem'
+                    }}>
+                      <strong style={{ color: '#ff8593', display: 'block', marginBottom: '0.2rem' }}>
+                        Consejo del Coach:
+                      </strong>
+                      {activeInspectChar.coachAdvice}
+                    </div>
+                  </>
+                ) : (
+                  /* Movimientos Característicos, Especiales y Desperation Moves */
+                  <div
+                    className="moves-scroll-container"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      maxHeight: '380px',
+                      overflowY: 'auto',
+                      paddingRight: '4px'
+                    }}
+                  >
+                    {/* Command Normals / Movimientos Característicos */}
+                    {charMoves.commandNormals && charMoves.commandNormals.length > 0 && (
+                      <div>
+                        <div style={{
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          color: '#38bdf8',
+                          letterSpacing: '0.05em',
+                          marginBottom: '0.35rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <span style={{ width: '5px', height: '5px', background: '#38bdf8', borderRadius: '50%' }} />
+                          MOVIMIENTOS CARACTERÍSTICOS
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {charMoves.commandNormals.map((m, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                background: 'rgba(0, 0, 0, 0.45)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '6px',
+                                padding: '0.4rem 0.55rem'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.4rem', marginBottom: '2px', flexWrap: 'wrap' }}>
+                                <span className="font-tech" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f8fafc' }}>
+                                  {m.name}
+                                </span>
+                                <span style={{
+                                  background: 'rgba(56, 189, 248, 0.15)',
+                                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                                  color: '#38bdf8',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {m.command}
+                                </span>
+                              </div>
+                              {m.desc && (
+                                <div style={{ fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.25 }}>
+                                  {m.desc}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Special Moves / Golpes Especiales */}
+                    {charMoves.specialMoves && charMoves.specialMoves.length > 0 && (
+                      <div>
+                        <div style={{
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          color: '#fbbf24',
+                          letterSpacing: '0.05em',
+                          marginBottom: '0.35rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <span style={{ width: '5px', height: '5px', background: '#fbbf24', borderRadius: '50%' }} />
+                          SPECIAL MOVES (GOLPES ESPECIALES)
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {charMoves.specialMoves.map((m, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                background: 'rgba(0, 0, 0, 0.45)',
+                                border: '1px solid rgba(251, 191, 36, 0.18)',
+                                borderRadius: '6px',
+                                padding: '0.4rem 0.55rem'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.4rem', marginBottom: '2px', flexWrap: 'wrap' }}>
+                                <span className="font-tech" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fef08a' }}>
+                                  {m.name}
+                                </span>
+                                <span style={{
+                                  background: 'rgba(251, 191, 36, 0.15)',
+                                  border: '1px solid rgba(251, 191, 36, 0.4)',
+                                  color: '#fbbf24',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {m.command}
+                                </span>
+                              </div>
+                              {m.desc && (
+                                <div style={{ fontSize: '0.7rem', color: '#cbd5e1', lineHeight: 1.25 }}>
+                                  {m.desc}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Desperation Moves / Súperes & SDMs */}
+                    {charMoves.desperationMoves && charMoves.desperationMoves.length > 0 && (
+                      <div>
+                        <div style={{
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          color: '#f87171',
+                          letterSpacing: '0.05em',
+                          marginBottom: '0.35rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <span style={{ width: '5px', height: '5px', background: '#ef4444', borderRadius: '50%' }} />
+                          DESPERATION MOVES (SÚPERES)
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {charMoves.desperationMoves.map((m, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                background: m.isMax ? 'rgba(168, 85, 247, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+                                border: m.isMax ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid rgba(239, 68, 68, 0.35)',
+                                borderRadius: '6px',
+                                padding: '0.4rem 0.55rem'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.4rem', marginBottom: '2px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                  <span className="font-tech" style={{ fontSize: '0.78rem', fontWeight: 700, color: m.isMax ? '#e9d5ff' : '#fca5a5' }}>
+                                    {m.name}
+                                  </span>
+                                  {m.isMax && (
+                                    <span className="badge-arcade" style={{ fontSize: '0.55rem', padding: '0 3px', background: 'rgba(168, 85, 247, 0.3)', color: '#d8b4fe', borderColor: '#a855f7' }}>
+                                      MAX / SDM
+                                    </span>
+                                  )}
+                                </div>
+                                <span style={{
+                                  background: m.isMax ? 'rgba(168, 85, 247, 0.25)' : 'rgba(239, 68, 68, 0.2)',
+                                  border: m.isMax ? '1px solid #c084fc' : '1px solid #f87171',
+                                  color: m.isMax ? '#f3e8ff' : '#fecaca',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {m.command}
+                                </span>
+                              </div>
+                              {m.desc && (
+                                <div style={{ fontSize: '0.7rem', color: '#cbd5e1', lineHeight: 1.25 }}>
+                                  {m.desc}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Neo Geo Arcade Buttons Guide Legend */}
+                    <div style={{
+                      fontSize: '0.64rem',
+                      color: '#64748b',
+                      textAlign: 'center',
+                      paddingTop: '0.45rem',
+                      borderTop: '1px dashed rgba(255, 255, 255, 0.08)',
+                      marginTop: '0.2rem'
+                    }}>
+                      <strong>BOTONES:</strong> A = Puño débil • B = Patada débil • C = Puño fuerte • D = Patada fuerte
                     </div>
                   </div>
-                ))}
+                )}
               </div>
-
-              {/* Coach Tip Snippet */}
-              <div style={{
-                fontSize: '0.8rem',
-                color: '#cbd5e1',
-                lineHeight: 1.5,
-                borderTop: '1px solid rgba(255,255,255,0.1)',
-                paddingTop: '0.75rem'
-              }}>
-                <strong style={{ color: '#ff8593', display: 'block', marginBottom: '0.2rem' }}>
-                  Consejo del Coach:
-                </strong>
-                {activeInspectChar.coachAdvice}
-              </div>
-            </div>
-          ) : (
+            );
+          })() : (
             /* Standby Neutral Arcade Inspector Panel (Aligned with grid, non-sticky) */
             <div className="glass-panel" style={{
               padding: '1.5rem',

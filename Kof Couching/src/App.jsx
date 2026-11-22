@@ -93,6 +93,23 @@ function App() {
     }
   };
 
+  const handleSwapTeamSlots = (teamNum, slotIdxA, slotIdxB) => {
+    if (slotIdxA === slotIdxB) return;
+    const setter = teamNum === 1 ? setTeam1 : setTeam2;
+    setter((prev) => {
+      const next = [...prev];
+      const temp = next[slotIdxA];
+      next[slotIdxA] = next[slotIdxB];
+      next[slotIdxB] = temp;
+      return next;
+    });
+  };
+
+  const handleRotateTeam = (teamNum) => {
+    const setter = teamNum === 1 ? setTeam1 : setTeam2;
+    setter((prev) => [prev[1], prev[2], prev[0]]);
+  };
+
   const handleApplyPreset = (preset) => {
     const t1 = preset.team1.map((id) => CHARACTERS.find((c) => c.id === id) || null);
     const t2 = preset.team2.map((id) => CHARACTERS.find((c) => c.id === id) || null);
@@ -181,6 +198,8 @@ function App() {
             team2={team2}
             onSelectCharacter={handleSelectCharacter}
             onRemoveCharacter={handleRemoveCharacter}
+            onSwapSlots={handleSwapTeamSlots}
+            onRotateTeam={handleRotateTeam}
             onApplyPreset={handleApplyPreset}
             onRandomize={handleRandomize}
             onClearTeams={handleClearTeams}
