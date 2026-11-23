@@ -82,10 +82,10 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
             </span>
           </div>
           <h2 className="font-arcade" style={{ fontSize: 'clamp(2.4rem, 5vw, 4rem)', color: '#fff', lineHeight: 1 }}>
-            COMPARACIÓN DE MATCHUPS POR ORDEN DE PELEA
+            SIMULACIÓN DE ENFRENTAMIENTOS KOF (HASTA 5 ROUNDS)
           </h2>
-          <p style={{ color: '#94a3b8', maxWidth: '800px', margin: '0 auto 1.5rem auto', fontSize: '1rem' }}>
-            En KOF 98 el orden define el resultado: evaluamos cada choque según el inicio de medidor (0 barras en Point, 1-2 en Mid, 3 en Anchor), la velocidad de safe hops, el control de espacio y las opciones de reversal.
+          <p style={{ color: '#94a3b8', maxWidth: '820px', margin: '0 auto 1.5rem auto', fontSize: '1rem' }}>
+            Formato oficial de KOF (3 vs 3 por eliminación): el luchador vencedor de cada round <strong>se mantiene en el ring</strong> para enfrentar al siguiente combatiente del equipo rival, disputándose entre 3 y hasta un máximo de 5 asaltos para definir la serie.
           </p>
 
           {/* View Toggle: Order vs Full 3x3 Matrix (Neo Geo Arcade Buttons) */}
@@ -100,7 +100,7 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
               }}
             >
               <Layers size={16} />
-              <span>Duelo por Orden (1v1, 2v2, 3v3)</span>
+              <span>Eliminación KOF (Hasta 5 Rounds)</span>
             </button>
 
             <button
@@ -113,7 +113,7 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
               }}
             >
               <Grid3X3 size={16} />
-              <span>Matriz Cruzada 3x3 (Eliminación KOF)</span>
+              <span>Matriz Cruzada 3x3 (Todos vs Todos)</span>
             </button>
           </div>
         </div>
@@ -256,29 +256,45 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                     paddingBottom: '1rem',
                     borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                       <div style={{
-                        padding: '0.3rem 0.8rem',
+                        padding: '0.35rem 0.85rem',
                         borderRadius: '6px',
-                        background: 'linear-gradient(135deg, #ff2e43 0%, #9d4edd 100%)',
+                        background: match.isMatchDecider
+                          ? 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)'
+                          : 'linear-gradient(135deg, #ff2e43 0%, #9d4edd 100%)',
                         fontFamily: 'var(--font-arcade)',
                         fontSize: '1.4rem',
                         color: '#fff',
-                        lineHeight: 1
+                        lineHeight: 1,
+                        boxShadow: match.isMatchDecider ? '0 0 15px rgba(245, 158, 11, 0.5)' : 'none'
                       }}>
-                        ROUND {idx + 1}
+                        ROUND {match.roundNumber || idx + 1}
                       </div>
+
+                      {match.isMatchDecider && (
+                        <span className="badge-arcade" style={{
+                          background: 'rgba(245, 158, 11, 0.25)',
+                          borderColor: '#f59e0b',
+                          color: '#fbbf24',
+                          fontSize: '0.75rem',
+                          padding: '2px 8px'
+                        }}>
+                          🏆 ASALTO FINAL DECISIVO
+                        </span>
+                      )}
+
                       <div>
                         <h3 className="font-tech" style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-                          {slotName}: {char1.name} <span style={{ color: '#f59e0b' }}>VS</span> {char2.name}
+                          {char1.name} <span style={{ color: '#f59e0b' }}>VS</span> {char2.name}
                         </h3>
                         <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                          {slotTip}
+                          {match.slotTip || match.customReason}
                         </span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <span className="font-tech" style={{
                         fontSize: '0.85rem',
                         fontWeight: 700,
@@ -326,9 +342,18 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                         <div className="font-tech" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>
                           {char1.name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '2px' }}>
                           1P • Tier {char1.tier}
                         </div>
+                        {match.p1IsSurvivor ? (
+                          <span className="badge-arcade" style={{ background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
+                            🔥 SE MANTIENE EN EL RING
+                          </span>
+                        ) : (
+                          <span className="badge-arcade" style={{ background: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.4)', color: '#93c5fd', fontSize: '0.62rem', padding: '1px 5px' }}>
+                            ENTRA ({match.p1RoleLabel || 'RELEVO'})
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -360,9 +385,18 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                         <div className="font-tech" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>
                           {char2.name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '2px' }}>
                           2P • Tier {char2.tier}
                         </div>
+                        {match.p2IsSurvivor ? (
+                          <span className="badge-arcade" style={{ background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
+                            🔥 SE MANTIENE EN EL RING
+                          </span>
+                        ) : (
+                          <span className="badge-arcade" style={{ background: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.62rem', padding: '1px 5px' }}>
+                            ENTRA ({match.p2RoleLabel || 'RELEVO'})
+                          </span>
+                        )}
                       </div>
                       <div style={{
                         width: '64px',
@@ -470,6 +504,45 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                       <span style={{ fontSize: '0.88rem', color: '#e2e8f0', lineHeight: 1.4 }}>
                         {coachVerdict}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Round Resolution & Running Score Ticker */}
+                  <div style={{
+                    marginTop: '1.25rem',
+                    background: 'rgba(0, 0, 0, 0.55)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '0.75rem 1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <span className="font-tech" style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>
+                        MARCADOR DE LA SERIE:
+                      </span>
+                      <span className="font-arcade" style={{ fontSize: '1.2rem', color: '#fff' }}>
+                        1P [{match.p1ScoreBefore ?? 0}] - [{match.p2ScoreBefore ?? 0}] 2P
+                      </span>
+                      <ArrowRight size={14} color="#f59e0b" />
+                      <span className="font-arcade" style={{ fontSize: '1.35rem', color: match.winnerTeam === 1 ? '#60a5fa' : '#f87171' }}>
+                        1P [{match.p1ScoreAfter}] - [{match.p2ScoreAfter}] 2P
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.85rem', color: '#e2e8f0' }}>
+                      {match.isMatchDecider ? (
+                        <span style={{ color: match.winnerTeam === 1 ? '#60a5fa' : '#f87171', fontWeight: 700 }}>
+                          🏆 ¡{match.winnerChar.name} sella la victoria definitiva de la serie ({match.p1ScoreAfter} - {match.p2ScoreAfter})!
+                        </span>
+                      ) : (
+                        <span>
+                          Gana <strong>{match.winnerChar.name}</strong> y <strong>se mantiene en el ring</strong> para el Round {(match.roundNumber || idx + 1) + 1}.
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -38,10 +38,8 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
 📊 RESULTADO ESPERADO: ${expectedScore} (${overallWinRate}% Victoria 1P vs ${team2WinRate}% 2P)
 ⚡ RITMO ESTIMADO: ${matchPace}
 
-🥊 DESGLOSE POR ASALTO:
-• Round 1 (Point): ${slotMatchups[0].char1.name} (${slotMatchups[0].p1Rate}%) vs ${slotMatchups[0].char2.name} (${slotMatchups[0].p2Rate}%)
-• Round 2 (Mid): ${slotMatchups[1].char1.name} (${slotMatchups[1].p1Rate}%) vs ${slotMatchups[1].char2.name} (${slotMatchups[1].p2Rate}%)
-• Round 3 (Anchor): ${slotMatchups[2].char1.name} (${slotMatchups[2].p1Rate}%) vs ${slotMatchups[2].char2.name} (${slotMatchups[2].p2Rate}%)
+🥊 DESGLOSE DE ASALTOS (ELIMINACIÓN KOF HASTA 5 ROUNDS):
+${slotMatchups.map((r, i) => `• Round ${r.roundNumber || i + 1}: ${r.char1.name} (${r.p1Rate}%) vs ${r.char2.name} (${r.p2Rate}%) → Gana ${r.winnerChar ? r.winnerChar.name : (r.p1Rate >= 50 ? r.char1.name : r.char2.name)} [Marcador: ${r.p1ScoreAfter ?? '-'}-${r.p2ScoreAfter ?? '-'}]${r.isMatchDecider ? ' 🏆' : ''}`).join('\n')}
 
 🔥 SINERGIA DE BARRAS (MOOD ADVANCE):
 • 1P: ${mood1.links.map((l) => `${l.from.name}→${l.to.name} [${l.icon} ${l.status}]`).join(' | ')}
@@ -105,7 +103,7 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
               color: '#94a3b8',
               textTransform: 'uppercase'
             }}>
-              Marcador Estimado de la Serie (3 vs 3)
+              Marcador Estimado de la Serie (Eliminación KOF hasta 5 Rounds)
             </span>
             <div className="font-arcade" style={{
               fontSize: 'clamp(3.8rem, 8vw, 6rem)',

@@ -165,7 +165,8 @@ export function calculateTeamMood(team) {
   };
 }
 
-// Complete evaluation of the 3v3 team matchup
+// Complete evaluation of the 3v3 team matchup with KOF elimination logic (up to 5 rounds)
+// Winner of each round stays in the ring to face the opponent's next ordered fighter
 export function evaluateTeamBattle(team1, team2) {
   if (!team1 || !team2 || team1.length !== 3 || team2.length !== 3) {
     return null;
@@ -176,46 +177,120 @@ export function evaluateTeamBattle(team1, team2) {
     return null;
   }
 
-  // 1. Calculate each slot
-  const slotMatchups = team1.map((c1, idx) => calculateSlotMatchup(c1, team2[idx], idx));
+  const slotRoles = ['Point (1º)', 'Mid (2º)', 'Anchor (3º)'];
 
-  // 2. Calculate moods
+  // 1. Calculate the full 3x3 match outcomes for dynamic programming
+  const matrix = team1.map((p1Char, p1Idx) => {
+    return team2.map((p2Char, p2Idx) => {
+      const effSlot = Math.min(2, Math.max(p1Idx, p2Idx));
+      return calculateSlotMatchup(p1Char, p2Char, effSlot);
+    });
+  });
+
+  // Calculate mathematically exact match win probability using dynamic programming
+  // dp[i][j] = probability team1 wins the entire match when team1 is at fighter i and team2 is at fighter j
+  const dp = Array.from({ length: 4 }, () => Array(4).fill(0));
+  for (let i = 0; i < 3; i++) dp[i][3] = 1; // Team 2 has eliminated all 3 fighters -> Team 1 wins
+  for (let j = 0; j < 3; j++) dp[3][j] = 0; // Team 1 has eliminated all 3 fighters -> Team 2 wins
+
+  for (let i = 2; i >= 0; i--) {
+    for (let j = 2; j >= 0; j--) {
+      const p1WinProb = matrix[i][j].p1Rate / 100;
+      dp[i][j] = p1WinProb * dp[i][j + 1] + (1 - p1WinProb) * dp[i + 1][j];
+    }
+  }
+
+  // 2. KOF Elimination Simulation (Up to 5 rounds)
+  // The winner of each round stays in the ring; the loser is eliminated and replaced by their next fighter
+  const rounds = [];
+  let p1Idx = 0; // index in team1: 0, 1, 2
+  let p2Idx = 0; // index in team2: 0, 1, 2
+  let p1Wins = 0;
+  let p2Wins = 0;
+
+  for (let roundNum = 1; roundNum <= 5; roundNum++) {
+    if (p1Wins === 3 || p2Wins === 3) break;
+
+    const char1 = team1[p1Idx];
+    const char2 = team2[p2Idx];
+    const currentP1SlotIdx = p1Idx;
+    const currentP2SlotIdx = p2Idx;
+
+    const effSlot = Math.min(2, Math.max(p1Idx, p2Idx, roundNum >= 3 ? 1 : 0));
+    const matchup = calculateSlotMatchup(char1, char2, effSlot);
+
+    const p1WinsRound = matchup.p1Rate >= 50;
+    const winnerTeam = p1WinsRound ? 1 : 2;
+    const loserTeam = p1WinsRound ? 2 : 1;
+    const winnerChar = p1WinsRound ? char1 : char2;
+    const loserChar = p1WinsRound ? char2 : char1;
+
+    const prevP1Wins = p1Wins;
+    const prevP2Wins = p2Wins;
+
+    if (p1WinsRound) {
+      p1Wins++;
+      p2Idx++; // Team 2's fighter eliminated, next enters
+    } else {
+      p2Wins++;
+      p1Idx++; // Team 1's fighter eliminated, next enters
+    }
+
+    const isMatchDecider = p1Wins === 3 || p2Wins === 3;
+    const p1IsSurvivor = roundNum > 1 && rounds[roundNum - 2].winnerTeam === 1;
+    const p2IsSurvivor = roundNum > 1 && rounds[roundNum - 2].winnerTeam === 2;
+
+    rounds.push({
+      ...matchup,
+      roundNumber: roundNum,
+      roundTitle: `ROUND ${roundNum}`,
+      char1,
+      char2,
+      p1SlotRoleIdx: currentP1SlotIdx,
+      p2SlotRoleIdx: currentP2SlotIdx,
+      p1RoleLabel: slotRoles[currentP1SlotIdx],
+      p2RoleLabel: slotRoles[currentP2SlotIdx],
+      winnerTeam,
+      loserTeam,
+      winnerChar,
+      loserChar,
+      p1IsSurvivor,
+      p2IsSurvivor,
+      p1ScoreBefore: prevP1Wins,
+      p2ScoreBefore: prevP2Wins,
+      p1ScoreAfter: p1Wins,
+      p2ScoreAfter: p2Wins,
+      isMatchDecider,
+    });
+  }
+
+  // 3. Calculate moods
   const mood1 = calculateTeamMood(team1);
   const mood2 = calculateTeamMood(team2);
-
-  // 3. Weight overall win rate:
-  // Point: 30%, Mid: 30%, Anchor: 40% (anchor clutch matters more in KOF 98)
-  const weightedBase =
-    slotMatchups[0].p1Rate * 0.3 +
-    slotMatchups[1].p1Rate * 0.3 +
-    slotMatchups[2].p1Rate * 0.4;
 
   // Mood influence (up to +/- 5%)
   const synergyModifier = (mood1.totalSynergyScore - mood2.totalSynergyScore) * 2.5;
 
-  let overallWinRate = Math.round(weightedBase + synergyModifier);
+  let overallWinRate = Math.round(dp[0][0] * 100 + synergyModifier);
   overallWinRate = Math.max(20, Math.min(80, overallWinRate));
   const team2WinRate = 100 - overallWinRate;
 
-  // Expected Series Score
-  let expectedScore = '3 - 2';
+  // Expected Series Score directly from the 5-round simulation
+  const expectedScore = `${p1Wins} - ${p2Wins}`;
   let matchPace = 'Duelo Cerrado';
 
-  if (overallWinRate >= 65) {
-    expectedScore = '3 - 0';
-    matchPace = 'Dominio Táctico / Posible Ougi Sweep';
-  } else if (overallWinRate >= 55) {
-    expectedScore = '3 - 1';
-    matchPace = 'Ventaja Sólida';
-  } else if (overallWinRate <= 35) {
-    expectedScore = '0 - 3';
-    matchPace = 'Desventaja Crítica';
-  } else if (overallWinRate <= 45) {
-    expectedScore = '1 - 3';
-    matchPace = 'Ventaja Rival';
-  } else {
-    expectedScore = '3 - 2';
-    matchPace = 'Desenlace de Infarto (Último Round Anchor)';
+  if (p1Wins === 3 && p2Wins === 0) {
+    matchPace = 'Dominio Táctico / Ougon Sweep 3-0';
+  } else if (p1Wins === 3 && p2Wins === 1) {
+    matchPace = 'Ventaja Sólida 3-1';
+  } else if (p1Wins === 3 && p2Wins === 2) {
+    matchPace = 'Desenlace de Infarto 3-2 (Definición en Round 5)';
+  } else if (p1Wins === 2 && p2Wins === 3) {
+    matchPace = 'Desenlace de Infarto 2-3 (Definición en Round 5)';
+  } else if (p1Wins === 1 && p2Wins === 3) {
+    matchPace = 'Ventaja Rival 1-3';
+  } else if (p1Wins === 0 && p2Wins === 3) {
+    matchPace = 'Desventaja Crítica 0-3 (Barrida Rival)';
   }
 
   // Team Anchor Clutch Evaluation
@@ -236,13 +311,19 @@ export function evaluateTeamBattle(team1, team2) {
   // Strategic Coaching Playbook
   const coachingPlaybook = [];
 
-  if (slotMatchups[0].p1Rate >= 52) {
+  if (rounds[0].p1Rate >= 52) {
     coachingPlaybook.push(
-      `Paso 1 (Point): Tu ${team1[0].name} tiene la ventaja inicial contra ${team2[0].name}. Juega agresivo pero sin gastar barras para entregarle a tu Mid una reserva intacta.`
+      `Paso 1 (Round 1): Tu ${rounds[0].char1.name} tiene la ventaja inicial contra ${rounds[0].char2.name} (${rounds[0].p1Rate}%). Al ganar, se mantiene en el ring para presionar al siguiente oponente rival.`
     );
   } else {
     coachingPlaybook.push(
-      `Paso 1 (Point): Tu ${team1[0].name} sufre ante ${team2[0].name}. No te desesperes en el neutral; juega al desgaste y prioriza cargar al menos 1-2 barras antes de caer.`
+      `Paso 1 (Round 1): Tu ${rounds[0].char1.name} sufre ante ${rounds[0].char2.name} (${rounds[0].p1Rate}%). Prioriza cargar barra y desgastar al rival para que tu siguiente luchador entre en mejores condiciones.`
+    );
+  }
+
+  if (rounds.length >= 4) {
+    coachingPlaybook.push(
+      `Resistencia en Serie Larga (${rounds.length} Asaltos): La simulación proyecta un enfrentamiento extendido. Quien mantenga a su personaje sobreviviente con buen manejo de vida y barras obtendrá una ventaja decisiva hacia los rounds finales.`
     );
   }
 
@@ -258,7 +339,7 @@ export function evaluateTeamBattle(team1, team2) {
 
   if (anchor1.id === 'daimon') {
     coachingPlaybook.push(
-      `Factor Daimon: Si tu Daimon entra con 2 o 3 barras, aprovecha el Roll Cancel Bug para meter Tenchi Gaeshi o castiga cualquier salto rival con st.D y MAX Otoshi.`
+      `Factor Daimon: Si tu Daimon entra en los rounds decisivos con barras, aprovecha el Roll Cancel Bug para meter Tenchi Gaeshi o castiga cualquier salto rival con st.D y MAX Otoshi.`
     );
   } else if (anchor1.id === 'ochris') {
     coachingPlaybook.push(
@@ -275,7 +356,8 @@ export function evaluateTeamBattle(team1, team2) {
     team2WinRate,
     expectedScore,
     matchPace,
-    slotMatchups,
+    slotMatchups: rounds,
+    rounds,
     mood1,
     mood2,
     anchorComparison,
