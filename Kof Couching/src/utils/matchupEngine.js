@@ -202,11 +202,14 @@ export function evaluateTeamBattle(team1, team2) {
 
   // 2. KOF Elimination Simulation (Up to 5 rounds)
   // The winner of each round stays in the ring; the loser is eliminated and replaced by their next fighter
+  // Fighters who stay in the ring accumulate fatigue / health decay (bajada de vida), lowering their win rate in subsequent fights
   const rounds = [];
   let p1Idx = 0; // index in team1: 0, 1, 2
   let p2Idx = 0; // index in team2: 0, 1, 2
   let p1Wins = 0;
   let p2Wins = 0;
+  let p1Streak = 0; // consecutive fights won by currently active P1 fighter
+  let p2Streak = 0; // consecutive fights won by currently active P2 fighter
 
   for (let roundNum = 1; roundNum <= 5; roundNum++) {
     if (p1Wins === 3 || p2Wins === 3) break;
@@ -217,9 +220,29 @@ export function evaluateTeamBattle(team1, team2) {
     const currentP2SlotIdx = p2Idx;
 
     const effSlot = Math.min(2, Math.max(p1Idx, p2Idx, roundNum >= 3 ? 1 : 0));
-    const matchup = calculateSlotMatchup(char1, char2, effSlot);
+    const baseMatchup = calculateSlotMatchup(char1, char2, effSlot);
 
-    const p1WinsRound = matchup.p1Rate >= 50;
+    // Health Decay Calculation for Surviving Fighters:
+    // Fresh entrant (0 streak): 100% HP, 0% penalty
+    // 1 streak (won 1 previous round): ~65% HP, 10% penalty
+    // 2 streak (won 2 previous rounds): ~35% HP, 20% penalty
+    const currentP1Streak = p1Streak;
+    const currentP2Streak = p2Streak;
+
+    const p1HpEstimate = currentP1Streak === 0 ? 100 : currentP1Streak === 1 ? 65 : 35;
+    const p2HpEstimate = currentP2Streak === 0 ? 100 : currentP2Streak === 1 ? 65 : 35;
+
+    const healthPenaltyP1 = currentP1Streak === 0 ? 0 : currentP1Streak === 1 ? 10 : 20;
+    const healthPenaltyP2 = currentP2Streak === 0 ? 0 : currentP2Streak === 1 ? 10 : 20;
+
+    // Net modifier on P1 win rate due to life difference
+    const netHealthModifier = -healthPenaltyP1 + healthPenaltyP2;
+
+    let adjustedP1Rate = Math.round(baseMatchup.p1Rate + netHealthModifier);
+    adjustedP1Rate = Math.max(15, Math.min(85, adjustedP1Rate));
+    const adjustedP2Rate = 100 - adjustedP1Rate;
+
+    const p1WinsRound = adjustedP1Rate >= 50;
     const winnerTeam = p1WinsRound ? 1 : 2;
     const loserTeam = p1WinsRound ? 2 : 1;
     const winnerChar = p1WinsRound ? char1 : char2;
@@ -230,9 +253,13 @@ export function evaluateTeamBattle(team1, team2) {
 
     if (p1WinsRound) {
       p1Wins++;
+      p1Streak++;
+      p2Streak = 0; // opposing fighter eliminated, next comes fresh
       p2Idx++; // Team 2's fighter eliminated, next enters
     } else {
       p2Wins++;
+      p2Streak++;
+      p1Streak = 0; // P1 fighter eliminated, next comes fresh
       p1Idx++; // Team 1's fighter eliminated, next enters
     }
 
@@ -240,12 +267,46 @@ export function evaluateTeamBattle(team1, team2) {
     const p1IsSurvivor = roundNum > 1 && rounds[roundNum - 2].winnerTeam === 1;
     const p2IsSurvivor = roundNum > 1 && rounds[roundNum - 2].winnerTeam === 2;
 
+    // Tactical tips enriched with health decay status
+    const p1Advantages = [...baseMatchup.p1Advantages];
+    const p1Risks = [...baseMatchup.p1Risks];
+
+    if (p1IsSurvivor) {
+      p1Risks.unshift(
+        `Desgaste de Salud (~${p1HpEstimate}% vida): Al mantenerse tras la victoria previa, sufre una reducción de -${healthPenaltyP1}% en su probabilidad de victoria. Menor margen de error ante los combos del rival fresco.`
+      );
+    } else if (p2IsSurvivor) {
+      p1Advantages.unshift(
+        `Ventaja de Vitalidad (100% vs ~${p2HpEstimate}%): ${char1.name} entra fresco desde el banquillo contra un ${char2.name} mermado físicamente (+${healthPenaltyP2}% a favor de ${char1.name}).`
+      );
+    }
+
+    let coachVerdictWithHp = baseMatchup.coachVerdict;
+    if (healthPenaltyP1 > 0) {
+      coachVerdictWithHp += ` (Aviso: ${char1.name} arrastra penalización de -${healthPenaltyP1}% por salud reducida a ~${p1HpEstimate}%).`;
+    } else if (healthPenaltyP2 > 0) {
+      coachVerdictWithHp += ` (Aviso: ${char2.name} arrastra penalización de -${healthPenaltyP2}% por salud reducida a ~${p2HpEstimate}%).`;
+    }
+
     rounds.push({
-      ...matchup,
+      ...baseMatchup,
       roundNumber: roundNum,
       roundTitle: `ROUND ${roundNum}`,
       char1,
       char2,
+      baseP1Rate: baseMatchup.p1Rate,
+      baseP2Rate: baseMatchup.p2Rate,
+      p1Rate: adjustedP1Rate,
+      p2Rate: adjustedP2Rate,
+      p1HpEstimate,
+      p2HpEstimate,
+      p1Streak: currentP1Streak,
+      p2Streak: currentP2Streak,
+      healthPenaltyP1,
+      healthPenaltyP2,
+      p1Advantages,
+      p1Risks,
+      coachVerdict: coachVerdictWithHp,
       p1SlotRoleIdx: currentP1SlotIdx,
       p2SlotRoleIdx: currentP2SlotIdx,
       p1RoleLabel: slotRoles[currentP1SlotIdx],
@@ -326,6 +387,10 @@ export function evaluateTeamBattle(team1, team2) {
       `Resistencia en Serie Larga (${rounds.length} Asaltos): La simulación proyecta un enfrentamiento extendido. Quien mantenga a su personaje sobreviviente con buen manejo de vida y barras obtendrá una ventaja decisiva hacia los rounds finales.`
     );
   }
+
+  coachingPlaybook.push(
+    `Factor Desgaste de Vida en Eliminación: En KOF el vencedor conserva su barra de salud con solo una fracción de recuperación (~65% tras 1 victoria, ~35% tras 2 victorias). Si tu personaje sobrevive herido, cambia a un juego más cauteloso: prioriza safe hops, pokeo a distancia y castigos sin arriesgar intercambios de golpes.`
+  );
 
   if (mood1.hasSevereConflict) {
     coachingPlaybook.push(

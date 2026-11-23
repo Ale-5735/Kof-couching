@@ -39,7 +39,7 @@ export function FinalVerdict({ evaluation, team1, team2, onOpenBooking }) {
 ⚡ RITMO ESTIMADO: ${matchPace}
 
 🥊 DESGLOSE DE ASALTOS (ELIMINACIÓN KOF HASTA 5 ROUNDS):
-${slotMatchups.map((r, i) => `• Round ${r.roundNumber || i + 1}: ${r.char1.name} (${r.p1Rate}%) vs ${r.char2.name} (${r.p2Rate}%) → Gana ${r.winnerChar ? r.winnerChar.name : (r.p1Rate >= 50 ? r.char1.name : r.char2.name)} [Marcador: ${r.p1ScoreAfter ?? '-'}-${r.p2ScoreAfter ?? '-'}]${r.isMatchDecider ? ' 🏆' : ''}`).join('\n')}
+${slotMatchups.map((r, i) => `• Round ${r.roundNumber || i + 1}: ${r.char1.name}${r.healthPenaltyP1 > 0 ? ` [~${r.p1HpEstimate}% HP]` : ''} (${r.p1Rate}%) vs ${r.char2.name}${r.healthPenaltyP2 > 0 ? ` [~${r.p2HpEstimate}% HP]` : ''} (${r.p2Rate}%) → Gana ${r.winnerChar ? r.winnerChar.name : (r.p1Rate >= 50 ? r.char1.name : r.char2.name)} [Marcador: ${r.p1ScoreAfter ?? '-'}-${r.p2ScoreAfter ?? '-'}]${r.isMatchDecider ? ' 🏆' : ''}`).join('\n')}
 
 🔥 SINERGIA DE BARRAS (MOOD ADVANCE):
 • 1P: ${mood1.links.map((l) => `${l.from.name}→${l.to.name} [${l.icon} ${l.status}]`).join(' | ')}

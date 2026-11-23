@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Swords, ShieldAlert, Sparkles, AlertCircle, CheckCircle, Flame, ArrowRight, Zap, Grid3X3, Layers } from 'lucide-react';
+import { Swords, ShieldAlert, Sparkles, AlertCircle, CheckCircle, Flame, ArrowRight, Zap, Grid3X3, Layers, Heart } from 'lucide-react';
 import { calculateSlotMatchup } from '../utils/matchupEngine';
 import { CHARACTER_IMAGES } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
@@ -186,13 +186,13 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                         const bg = isFav
                           ? 'rgba(59, 130, 246, 0.15)'
                           : isDis
-                          ? 'rgba(239, 68, 68, 0.15)'
-                          : 'rgba(245, 158, 11, 0.15)';
+                            ? 'rgba(239, 68, 68, 0.15)'
+                            : 'rgba(245, 158, 11, 0.15)';
                         const border = isFav
                           ? 'rgba(59, 130, 246, 0.35)'
                           : isDis
-                          ? 'rgba(239, 68, 68, 0.35)'
-                          : 'rgba(245, 158, 11, 0.35)';
+                            ? 'rgba(239, 68, 68, 0.35)'
+                            : 'rgba(245, 158, 11, 0.35)';
                         const textCol = isFav ? '#60a5fa' : isDis ? '#f87171' : '#fbbf24';
 
                         return (
@@ -240,8 +240,8 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                     border: isFavorable
                       ? '1px solid rgba(59, 130, 246, 0.4)'
                       : isDisadvantaged
-                      ? '1px solid rgba(239, 68, 68, 0.4)'
-                      : '1px solid rgba(245, 158, 11, 0.4)',
+                        ? '1px solid rgba(239, 68, 68, 0.4)'
+                        : '1px solid rgba(245, 158, 11, 0.4)',
                     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
                   }}
                 >
@@ -345,15 +345,30 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '2px' }}>
                           1P • Tier {char1.tier}
                         </div>
-                        {match.p1IsSurvivor ? (
-                          <span className="badge-arcade" style={{ background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
-                            🔥 SE MANTIENE EN EL RING
-                          </span>
-                        ) : (
-                          <span className="badge-arcade" style={{ background: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.4)', color: '#93c5fd', fontSize: '0.62rem', padding: '1px 5px' }}>
-                            ENTRA ({match.p1RoleLabel || 'RELEVO'})
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          {match.p1IsSurvivor ? (
+                            <span className="badge-arcade" style={{ background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
+                              🔥 SE MANTIENE EN EL RING
+                            </span>
+                          ) : (
+                            <span className="badge-arcade" style={{ background: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.4)', color: '#93c5fd', fontSize: '0.62rem', padding: '1px 5px' }}>
+                              ENTRA ({match.p1RoleLabel || 'RELEVO'})
+                            </span>
+                          )}
+
+                          {/* Health Decay Indicator */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Heart size={11} color={match.p1HpEstimate === 100 ? '#22c55e' : match.p1HpEstimate === 65 ? '#f59e0b' : '#ef4444'} />
+                            <span style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-tech)',
+                              color: match.p1HpEstimate === 100 ? '#4ade80' : match.p1HpEstimate === 65 ? '#fbbf24' : '#f87171'
+                            }}>
+                              {match.p1HpEstimate}% Vida {match.healthPenaltyP1 > 0 && `(-${match.healthPenaltyP1}%)`}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -377,6 +392,25 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                         </div>
                         <div className="vs-divider-pill">VS</div>
                       </div>
+
+                      {/* Health Penalty Notice */}
+                      {(match.healthPenaltyP1 > 0 || match.healthPenaltyP2 > 0) && (
+                        <div style={{
+                          textAlign: 'center',
+                          fontSize: '0.72rem',
+                          color: '#fbbf24',
+                          marginTop: '0.4rem',
+                          fontFamily: 'var(--font-tech)',
+                          background: 'rgba(0, 0, 0, 0.35)',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          border: '1px dashed rgba(245, 158, 11, 0.3)'
+                        }}>
+                          ⚖️ Ajuste por vida: {match.healthPenaltyP1 > 0 ? `${char1.name} (-${match.healthPenaltyP1}% por desgaste)` : ''}
+                          {match.healthPenaltyP1 > 0 && match.healthPenaltyP2 > 0 ? ' • ' : ''}
+                          {match.healthPenaltyP2 > 0 ? `${char2.name} (-${match.healthPenaltyP2}% por desgaste)` : ''}
+                        </div>
+                      )}
                     </div>
 
                     {/* P2 Character */}
@@ -388,15 +422,30 @@ export function MatchupComparison({ evaluation, team1, team2, onOpenBooking }) {
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '2px' }}>
                           2P • Tier {char2.tier}
                         </div>
-                        {match.p2IsSurvivor ? (
-                          <span className="badge-arcade" style={{ background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
-                            🔥 SE MANTIENE EN EL RING
-                          </span>
-                        ) : (
-                          <span className="badge-arcade" style={{ background: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.62rem', padding: '1px 5px' }}>
-                            ENTRA ({match.p2RoleLabel || 'RELEVO'})
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                          {match.p2IsSurvivor ? (
+                            <span className="badge-arcade" style={{ background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
+                              🔥 SE MANTIENE EN EL RING
+                            </span>
+                          ) : (
+                            <span className="badge-arcade" style={{ background: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.62rem', padding: '1px 5px' }}>
+                              ENTRA ({match.p2RoleLabel || 'RELEVO'})
+                            </span>
+                          )}
+
+                          {/* Health Decay Indicator */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-tech)',
+                              color: match.p2HpEstimate === 100 ? '#4ade80' : match.p2HpEstimate === 65 ? '#fbbf24' : '#f87171'
+                            }}>
+                              {match.healthPenaltyP2 > 0 && `(-${match.healthPenaltyP2}%) `}{match.p2HpEstimate}% Vida
+                            </span>
+                            <Heart size={11} color={match.p2HpEstimate === 100 ? '#22c55e' : match.p2HpEstimate === 65 ? '#f59e0b' : '#ef4444'} />
+                          </div>
+                        </div>
                       </div>
                       <div style={{
                         width: '64px',
