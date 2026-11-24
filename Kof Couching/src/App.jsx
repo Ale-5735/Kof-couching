@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { CHARACTERS, TEAM_PRESETS, OROCHI_COUNTERPARTS } from './data/characters';
 import { evaluateTeamBattle } from './utils/matchupEngine';
 import { getLoggedInUser, logout, initAuthStorage } from './utils/auth';
+import { initBookingsStorage } from './utils/bookingStorage';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProtectedTeaser } from './components/ProtectedTeaser';
@@ -20,6 +21,7 @@ function App() {
   // Authentication state
   const [currentUser, setCurrentUser] = useState(() => {
     initAuthStorage();
+    initBookingsStorage();
     return getLoggedInUser();
   });
 
@@ -253,6 +255,7 @@ function App() {
         onClose={() => setBookingModalOpen(false)}
         defaultTeam={team1.filter(Boolean)}
         selectedPlan={selectedPlanForBooking}
+        currentUser={currentUser}
       />
 
       {/* Administrator Control Panel Modal (Restricted to role === 'admin') */}

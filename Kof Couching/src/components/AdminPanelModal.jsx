@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Sparkles,
   Lock,
+  Calendar,
 } from 'lucide-react';
 import {
   getRegisteredUsers,
@@ -29,6 +30,8 @@ import {
   ADMIN_USER,
   DEMO_STUDENT_USER,
 } from '../utils/auth';
+import { getBookingRequests } from '../utils/bookingStorage';
+import { AdminBookingsView } from './AdminBookingsView';
 import { CHARACTERS } from '../data/characters';
 import { CHARACTER_IMAGES } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
@@ -36,7 +39,9 @@ import { arcadeAudio } from '../utils/audio';
 export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated }) {
   if (!isOpen || currentUser?.role !== 'admin') return null;
 
+  const [adminTab, setAdminTab] = useState('users'); // 'users' | 'bookings'
   const [users, setUsers] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL'); // 'ALL' | 'admin' | 'user'
   const [toast, setToast] = useState(null);
@@ -66,9 +71,17 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
     setUsers(list);
   };
 
+  const refreshBookingsCount = () => {
+    const bList = getBookingRequests();
+    setBookings(bList);
+  };
+
   useEffect(() => {
     refreshUsersList();
+    refreshBookingsCount();
   }, [isOpen]);
+
+  const pendingBookingsCount = bookings.filter((b) => b.status === 'pending').length;
 
   const showToast = (msg, isError = false) => {
     setToast({ msg, isError });
@@ -332,450 +345,536 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
           </button>
         </div>
 
+        {/* Navigation Tabs Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.75rem 1.5rem',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(6, 8, 15, 0.98)',
+            flexShrink: 0,
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playHover();
+              setAdminTab('users');
+            }}
+            className="btn-ghost"
+            style={{
+              padding: '0.55rem 1.15rem',
+              fontSize: '0.85rem',
+              background: adminTab === 'users' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+              borderColor: adminTab === 'users' ? '#f59e0b' : 'rgba(255, 255, 255, 0.1)',
+              color: adminTab === 'users' ? '#fbbf24' : '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            <Users size={16} />
+            <span>Gestión de Cuentas ({totalCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playHover();
+              setAdminTab('bookings');
+              refreshBookingsCount();
+            }}
+            className="btn-ghost"
+            style={{
+              padding: '0.55rem 1.15rem',
+              fontSize: '0.85rem',
+              background: adminTab === 'bookings' ? 'rgba(255, 46, 67, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+              borderColor: adminTab === 'bookings' ? '#ff2e43' : 'rgba(255, 255, 255, 0.1)',
+              color: adminTab === 'bookings' ? '#fff' : '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            <Calendar size={16} />
+            <span>Solicitudes de Clases ({bookings.length})</span>
+            {pendingBookingsCount > 0 && (
+              <span
+                style={{
+                  background: '#ff2e43',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  padding: '0.1rem 0.45rem',
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  boxShadow: '0 0 10px rgba(255, 46, 67, 0.6)',
+                }}
+              >
+                {pendingBookingsCount} NUEVAS
+              </span>
+            )}
+          </button>
+        </div>
+
         {/* Scrollable Content Body */}
         <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-          {/* Quick Stats Grid */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1.5rem',
-            }}
-          >
-            <div
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                padding: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-              }}
-            >
-              <Users size={28} color="#38bdf8" />
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>
-                  Total de Cuentas
-                </div>
-                <div className="font-neogeo" style={{ fontSize: '1.9rem', color: '#fff', lineHeight: 1 }}>
-                  {totalCount}
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-                borderRadius: '8px',
-                padding: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-              }}
-            >
-              <Crown size={28} color="#f59e0b" />
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#fbbf24', textTransform: 'uppercase' }}>
-                  Administradores
-                </div>
-                <div className="font-neogeo" style={{ fontSize: '1.9rem', color: '#fbbf24', lineHeight: 1 }}>
-                  {adminCount}
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                borderRadius: '8px',
-                padding: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-              }}
-            >
-              <UserCheck size={28} color="#10b981" />
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#34d399', textTransform: 'uppercase' }}>
-                  Alumnos / Jugadores
-                </div>
-                <div className="font-neogeo" style={{ fontSize: '1.9rem', color: '#34d399', lineHeight: 1 }}>
-                  {studentCount}
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 46, 67, 0.25)',
-                borderRadius: '8px',
-                padding: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-              }}
-            >
-              <div style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img
-                  src={CHARACTER_IMAGES[topMainId] || CHARACTER_IMAGES.iori}
-                  alt={topMainChar?.name || 'Main'}
-                  style={{ width: '32px', height: '32px', objectFit: 'contain', imageRendering: 'pixelated' }}
-                />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#f87171', textTransform: 'uppercase' }}>
-                  Main Más Popular
-                </div>
-                <div className="font-neogeo" style={{ fontSize: '1.3rem', color: '#fff', lineHeight: 1 }}>
-                  {topMainChar?.name || 'Iori Yagami'} ({mainCounts[topMainId] || 1})
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action & Filter Bar */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '0.75rem',
-              marginBottom: '1.25rem',
-              paddingBottom: '1rem',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            }}
-          >
-            {/* Search Input */}
-            <div style={{ position: 'relative', minWidth: '240px', flex: '1 1 260px' }}>
-              <Search
-                size={16}
-                color="#94a3b8"
-                style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}
-              />
-              <input
-                type="text"
-                placeholder="Buscar por Gamertag o Correo..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+          {adminTab === 'users' ? (
+            <>
+              {/* Quick Stats Grid */}
+              <div
                 style={{
-                  width: '100%',
-                  background: '#040711',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '6px',
-                  padding: '0.55rem 0.75rem 0.55rem 2.2rem',
-                  color: '#fff',
-                  fontSize: '0.88rem',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '1rem',
+                  marginBottom: '1.5rem',
                 }}
-              />
-            </div>
-
-            {/* Role Filter Buttons */}
-            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginRight: '0.3rem' }}>Filtrar:</span>
-              {[
-                { id: 'ALL', label: `Todos (${totalCount})` },
-                { id: 'admin', label: `Admins (${adminCount})` },
-                { id: 'user', label: `Alumnos (${studentCount})` },
-              ].map((rf) => (
-                <button
-                  key={rf.id}
-                  type="button"
-                  onClick={() => setRoleFilter(rf.id)}
+              >
+                <div
                   style={{
-                    background: roleFilter === rf.id ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
-                    color: roleFilter === rf.id ? '#000' : '#cbd5e1',
-                    border: '1px solid ' + (roleFilter === rf.id ? '#fbbf24' : 'rgba(255, 255, 255, 0.1)'),
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '4px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
                   }}
                 >
-                  {rf.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Actions: Restore Demo Users & Create New Account */}
-            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-              <button
-                type="button"
-                className="btn-ghost"
-                style={{ fontSize: '0.85rem', padding: '0.45rem 0.9rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
-                onClick={handleRestoreDemoUsers}
-                title="Restaura las cuentas demo iniciales si fueron eliminadas (incluye KOF_Master98)"
-              >
-                <RotateCcw size={15} color="#38bdf8" />
-                <span>Restaurar Alumnos Demo</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-extra"
-                style={{ fontSize: '0.95rem', padding: '0.45rem 1.2rem' }}
-                onClick={() => {
-                  arcadeAudio.playCoin();
-                  setIsCreatingUser(true);
-                  setFormError(null);
-                }}
-              >
-                <Plus size={16} />
-                <span>Registrar Nueva Cuenta</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Registered Users Table */}
-          <div
-            style={{
-              background: '#040711',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '8px',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '70px 1.8fr 1.3fr 1.2fr 1fr 140px',
-                padding: '0.75rem 1rem',
-                background: 'rgba(255, 255, 255, 0.04)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                fontSize: '0.75rem',
-                color: '#94a3b8',
-                textTransform: 'uppercase',
-                fontWeight: 700,
-                letterSpacing: '0.05em',
-              }}
-            >
-              <span>Main</span>
-              <span>Luchador / Gamertag</span>
-              <span>Correo</span>
-              <span>Rango Competitivo</span>
-              <span>Rol</span>
-              <span style={{ textAlign: 'right' }}>Acciones</span>
-            </div>
-
-            {filteredUsers.length === 0 ? (
-              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#94a3b8' }}>
-                <p style={{ marginBottom: '0.75rem' }}>No se encontraron cuentas que coincidan con la búsqueda.</p>
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  onClick={handleRestoreDemoUsers}
-                  style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }}
-                >
-                  <RotateCcw size={14} />
-                  <span>Restaurar KOF_Master98 y Cuentas Demo</span>
-                </button>
-              </div>
-            ) : (
-              filteredUsers.map((u) => {
-                const isRootAdmin = u.email.toLowerCase() === ADMIN_USER.email.toLowerCase();
-                const charData = CHARACTERS.find((c) => c.id === u.mainChar);
-                return (
-                  <div
-                    key={u.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '70px 1.8fr 1.3fr 1.2fr 1fr 140px',
-                      alignItems: 'center',
-                      padding: '0.75rem 1rem',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-                      background: u.id === currentUser.id ? 'rgba(245, 158, 11, 0.04)' : 'transparent',
-                      transition: 'background 0.2s',
-                    }}
-                  >
-                    {/* Character Avatar */}
-                    <div>
-                      <div
-                        style={{
-                          width: '42px',
-                          height: '42px',
-                          borderRadius: '6px',
-                          background: 'rgba(0, 0, 0, 0.6)',
-                          border: '1px solid ' + (u.role === 'admin' ? '#f59e0b' : '#3b82f6'),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <img
-                          src={CHARACTER_IMAGES[u.mainChar] || CHARACTER_IMAGES.iori}
-                          alt={u.mainChar}
-                          style={{ width: '38px', height: '38px', objectFit: 'contain', imageRendering: 'pixelated' }}
-                        />
-                      </div>
+                  <Users size={28} color="#38bdf8" />
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>
+                      Total de Cuentas
                     </div>
-
-                    {/* Gamertag & Details */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                        <span className="font-neogeo" style={{ fontSize: '1.15rem', color: '#fff' }}>
-                          {u.gamertag}
-                        </span>
-                        {u.id === currentUser.id && (
-                          <span style={{ fontSize: '0.65rem', background: '#2563eb', color: '#fff', padding: '1px 5px', borderRadius: '3px' }}>
-                            Tú
-                          </span>
-                        )}
-                        {u.email.toLowerCase() === DEMO_STUDENT_USER.email.toLowerCase() && (
-                          <span style={{ fontSize: '0.65rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '3px' }}>
-                            Demo
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        Main: <strong style={{ color: '#cbd5e1' }}>{charData?.name || u.mainChar}</strong> • Registrado: {u.joinedDate || 'Reciente'}
-                      </div>
-                    </div>
-
-                    {/* Email */}
-                    <div style={{ fontSize: '0.85rem', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {u.email}
-                    </div>
-
-                    {/* Rank */}
-                    <div>
-                      <span
-                        style={{
-                          fontSize: '0.76rem',
-                          padding: '0.2rem 0.55rem',
-                          borderRadius: '4px',
-                          background: u.role === 'admin' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.12)',
-                          color: u.role === 'admin' ? '#fbbf24' : '#60a5fa',
-                          border: '1px solid ' + (u.role === 'admin' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(59, 130, 246, 0.3)'),
-                          fontWeight: 600,
-                        }}
-                      >
-                        {u.rank || 'Rank B'}
-                      </span>
-                    </div>
-
-                    {/* Role Badge */}
-                    <div>
-                      {u.role === 'admin' ? (
-                        <span
-                          className="badge-gold"
-                          style={{
-                            fontSize: '0.7rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            padding: '0.2rem 0.5rem',
-                          }}
-                        >
-                          <Crown size={12} />
-                          <span>ADMIN</span>
-                        </span>
-                      ) : (
-                        <span
-                          className="badge-cyan"
-                          style={{
-                            fontSize: '0.7rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            padding: '0.2rem 0.5rem',
-                          }}
-                        >
-                          <UserCheck size={12} />
-                          <span>ALUMNO</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                      {/* Edit Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          arcadeAudio.playSelect();
-                          setEditingUser({ ...u });
-                          setFormError(null);
-                        }}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          border: '1px solid rgba(255, 255, 255, 0.15)',
-                          color: '#38bdf8',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                        }}
-                        title="Modificar Datos / Rango"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-
-                      {/* Reset Password Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          arcadeAudio.playSelect();
-                          setPasswordModalUser(u);
-                          setNewPasswordVal('');
-                          setFormError(null);
-                        }}
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.1)',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                          color: '#fbbf24',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                        }}
-                        title="Cambiar Contraseña"
-                      >
-                        <Key size={14} />
-                      </button>
-
-                      {/* Delete Button (Disabled for Root Admin) */}
-                      <button
-                        type="button"
-                        disabled={isRootAdmin}
-                        onClick={() => {
-                          arcadeAudio.playDeselect();
-                          setDeleteConfirmUser(u);
-                        }}
-                        style={{
-                          background: isRootAdmin ? 'rgba(255, 255, 255, 0.02)' : 'rgba(239, 68, 68, 0.12)',
-                          border: '1px solid ' + (isRootAdmin ? 'rgba(255, 255, 255, 0.05)' : 'rgba(239, 68, 68, 0.35)'),
-                          color: isRootAdmin ? '#475569' : '#f87171',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: isRootAdmin ? 'not-allowed' : 'pointer',
-                        }}
-                        title={isRootAdmin ? 'Cuenta protegida de Administrador Raíz' : 'Eliminar Cuenta'}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                    <div className="font-neogeo" style={{ fontSize: '1.9rem', color: '#fff', lineHeight: 1 }}>
+                      {totalCount}
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
+                </div>
+
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                  }}
+                >
+                  <Crown size={28} color="#f59e0b" />
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#fbbf24', textTransform: 'uppercase' }}>
+                      Administradores
+                    </div>
+                    <div className="font-neogeo" style={{ fontSize: '1.9rem', color: '#fbbf24', lineHeight: 1 }}>
+                      {adminCount}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                  }}
+                >
+                  <UserCheck size={28} color="#10b981" />
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#34d399', textTransform: 'uppercase' }}>
+                      Alumnos / Jugadores
+                    </div>
+                    <div className="font-neogeo" style={{ fontSize: '1.9rem', color: '#34d399', lineHeight: 1 }}>
+                      {studentCount}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 46, 67, 0.25)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                  }}
+                >
+                  <div style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img
+                      src={CHARACTER_IMAGES[topMainId] || CHARACTER_IMAGES.iori}
+                      alt={topMainChar?.name || 'Main'}
+                      style={{ width: '32px', height: '32px', objectFit: 'contain', imageRendering: 'pixelated' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#f87171', textTransform: 'uppercase' }}>
+                      Main Más Popular
+                    </div>
+                    <div className="font-neogeo" style={{ fontSize: '1.3rem', color: '#fff', lineHeight: 1 }}>
+                      {topMainChar?.name || 'Iori Yagami'} ({mainCounts[topMainId] || 1})
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action & Filter Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                  marginBottom: '1.25rem',
+                  paddingBottom: '1rem',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                {/* Search Input */}
+                <div style={{ position: 'relative', minWidth: '240px', flex: '1 1 260px' }}>
+                  <Search
+                    size={16}
+                    color="#94a3b8"
+                    style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Buscar por Gamertag o Correo..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: '#040711',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: '6px',
+                      padding: '0.55rem 0.75rem 0.55rem 2.2rem',
+                      color: '#fff',
+                      fontSize: '0.88rem',
+                    }}
+                  />
+                </div>
+
+                {/* Role Filter Buttons */}
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginRight: '0.3rem' }}>Filtrar:</span>
+                  {[
+                    { id: 'ALL', label: `Todos (${totalCount})` },
+                    { id: 'admin', label: `Admins (${adminCount})` },
+                    { id: 'user', label: `Alumnos (${studentCount})` },
+                  ].map((rf) => (
+                    <button
+                      key={rf.id}
+                      type="button"
+                      onClick={() => setRoleFilter(rf.id)}
+                      style={{
+                        background: roleFilter === rf.id ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                        color: roleFilter === rf.id ? '#000' : '#cbd5e1',
+                        border: '1px solid ' + (roleFilter === rf.id ? '#fbbf24' : 'rgba(255, 255, 255, 0.1)'),
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '4px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {rf.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Actions: Restore Demo Users & Create New Account */}
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ fontSize: '0.85rem', padding: '0.45rem 0.9rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+                    onClick={handleRestoreDemoUsers}
+                    title="Restaura las cuentas demo iniciales si fueron eliminadas (incluye KOF_Master98)"
+                  >
+                    <RotateCcw size={15} color="#38bdf8" />
+                    <span>Restaurar Alumnos Demo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-extra"
+                    style={{ fontSize: '0.95rem', padding: '0.45rem 1.2rem' }}
+                    onClick={() => {
+                      arcadeAudio.playCoin();
+                      setIsCreatingUser(true);
+                      setFormError(null);
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>Registrar Nueva Cuenta</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Registered Users Table */}
+              <div
+                style={{
+                  background: '#040711',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '70px 1.8fr 1.3fr 1.2fr 1fr 140px',
+                    padding: '0.75rem 1rem',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                    fontSize: '0.75rem',
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  <span>Main</span>
+                  <span>Luchador / Gamertag</span>
+                  <span>Correo</span>
+                  <span>Rango Competitivo</span>
+                  <span>Rol</span>
+                  <span style={{ textAlign: 'right' }}>Acciones</span>
+                </div>
+
+                {filteredUsers.length === 0 ? (
+                  <div style={{ padding: '2.5rem', textAlign: 'center', color: '#94a3b8' }}>
+                    <p style={{ marginBottom: '0.75rem' }}>No se encontraron cuentas que coincidan con la búsqueda.</p>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={handleRestoreDemoUsers}
+                      style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }}
+                    >
+                      <RotateCcw size={14} />
+                      <span>Restaurar KOF_Master98 y Cuentas Demo</span>
+                    </button>
+                  </div>
+                ) : (
+                  filteredUsers.map((u) => {
+                    const isRootAdmin = u.email.toLowerCase() === ADMIN_USER.email.toLowerCase();
+                    const charData = CHARACTERS.find((c) => c.id === u.mainChar);
+                    return (
+                      <div
+                        key={u.id}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '70px 1.8fr 1.3fr 1.2fr 1fr 140px',
+                          alignItems: 'center',
+                          padding: '0.75rem 1rem',
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                          background: u.id === currentUser.id ? 'rgba(245, 158, 11, 0.04)' : 'transparent',
+                          transition: 'background 0.2s',
+                        }}
+                      >
+                        {/* Character Avatar */}
+                        <div>
+                          <div
+                            style={{
+                              width: '42px',
+                              height: '42px',
+                              borderRadius: '6px',
+                              background: 'rgba(0, 0, 0, 0.6)',
+                              border: '1px solid ' + (u.role === 'admin' ? '#f59e0b' : '#3b82f6'),
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <img
+                              src={CHARACTER_IMAGES[u.mainChar] || CHARACTER_IMAGES.iori}
+                              alt={u.mainChar}
+                              style={{ width: '38px', height: '38px', objectFit: 'contain', imageRendering: 'pixelated' }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Gamertag & Details */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                            <span className="font-neogeo" style={{ fontSize: '1.15rem', color: '#fff' }}>
+                              {u.gamertag}
+                            </span>
+                            {u.id === currentUser.id && (
+                              <span style={{ fontSize: '0.65rem', background: '#2563eb', color: '#fff', padding: '1px 5px', borderRadius: '3px' }}>
+                                Tú
+                              </span>
+                            )}
+                            {u.email.toLowerCase() === DEMO_STUDENT_USER.email.toLowerCase() && (
+                              <span style={{ fontSize: '0.65rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '3px' }}>
+                                Demo
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                            Main: <strong style={{ color: '#cbd5e1' }}>{charData?.name || u.mainChar}</strong> • Registrado: {u.joinedDate || 'Reciente'}
+                          </div>
+                        </div>
+
+                        {/* Email */}
+                        <div style={{ fontSize: '0.85rem', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {u.email}
+                        </div>
+
+                        {/* Rank */}
+                        <div>
+                          <span
+                            style={{
+                              fontSize: '0.76rem',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '4px',
+                              background: u.role === 'admin' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.12)',
+                              color: u.role === 'admin' ? '#fbbf24' : '#60a5fa',
+                              border: '1px solid ' + (u.role === 'admin' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(59, 130, 246, 0.3)'),
+                              fontWeight: 600,
+                            }}
+                          >
+                            {u.rank || 'Rank B'}
+                          </span>
+                        </div>
+
+                        {/* Role Badge */}
+                        <div>
+                          {u.role === 'admin' ? (
+                            <span
+                              className="badge-gold"
+                              style={{
+                                fontSize: '0.7rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.5rem',
+                              }}
+                            >
+                              <Crown size={12} />
+                              <span>ADMIN</span>
+                            </span>
+                          ) : (
+                            <span
+                              className="badge-cyan"
+                              style={{
+                                fontSize: '0.7rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.5rem',
+                              }}
+                            >
+                              <UserCheck size={12} />
+                              <span>ALUMNO</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              arcadeAudio.playSelect();
+                              setEditingUser({ ...u });
+                              setFormError(null);
+                            }}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                              color: '#38bdf8',
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                            title="Modificar Datos / Rango"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+
+                          {/* Reset Password Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              arcadeAudio.playSelect();
+                              setPasswordModalUser(u);
+                              setNewPasswordVal('');
+                              setFormError(null);
+                            }}
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.1)',
+                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                              color: '#fbbf24',
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                            title="Cambiar Contraseña"
+                          >
+                            <Key size={14} />
+                          </button>
+
+                          {/* Delete Button (Disabled for Root Admin) */}
+                          <button
+                            type="button"
+                            disabled={isRootAdmin}
+                            onClick={() => {
+                              arcadeAudio.playDeselect();
+                              setDeleteConfirmUser(u);
+                            }}
+                            style={{
+                              background: isRootAdmin ? 'rgba(255, 255, 255, 0.02)' : 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid ' + (isRootAdmin ? 'rgba(255, 255, 255, 0.05)' : 'rgba(239, 68, 68, 0.35)'),
+                              color: isRootAdmin ? '#475569' : '#f87171',
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: isRootAdmin ? 'not-allowed' : 'pointer',
+                            }}
+                            title={isRootAdmin ? 'Cuenta protegida de Administrador Raíz' : 'Eliminar Cuenta'}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          ) : (
+            <AdminBookingsView showToast={showToast} />
+          )}
         </div>
 
         {/* ===================================================================
