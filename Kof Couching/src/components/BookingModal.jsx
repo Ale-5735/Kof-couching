@@ -56,12 +56,12 @@ export function BookingModal({ isOpen, onClose, defaultTeam, selectedPlan, curre
 
   const resolvedPlan = selectedPlan || AVAILABLE_PLANS.find(p => p.id === activePlanId) || AVAILABLE_PLANS[0];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     arcadeAudio.playFight();
 
     // Guardar solicitud asociando al usuario registrado
-    saveBookingRequest({
+    await saveBookingRequest({
       userId: currentUser?.id || 'guest',
       userGamertag: currentUser?.gamertag || formData.name,
       userEmail: currentUser?.email || 'Sin correo asociado',

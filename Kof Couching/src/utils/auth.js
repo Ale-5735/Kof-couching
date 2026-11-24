@@ -1,5 +1,5 @@
-// Local Authentication & User Management System for KOF '98 Coaching Lab
-// Stores accounts and session in localStorage for seamless persistence
+// Local & Cloud Authentication System for KOF '98 Coaching Lab
+// Communicates with PHP / MySQL API with seamless fallback to localStorage
 
 const USERS_STORAGE_KEY = 'kof98_registered_users';
 const CURRENT_USER_KEY = 'kof98_current_session';
@@ -44,6 +44,28 @@ const INITIAL_DEMO_USERS = [
   },
 ];
 
+// Helper to make API calls to PHP backend
+async function fetchAuthApi(action, method = 'GET', body = null) {
+  try {
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`/api/auth.php?action=${action}`, opts);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      if (errData && errData.error) {
+        return { success: false, error: errData.error };
+      }
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    return null;
+  }
+}
+
 // Initialize storage and guarantee Admin and Demo Student (KOF_Master98) are always present
 export function initAuthStorage() {
   if (typeof window === 'undefined') return;
@@ -55,7 +77,6 @@ export function initAuthStorage() {
       let users = JSON.parse(existingRaw);
       let modified = false;
 
-      // Guarantee the admin account exists
       const hasAdmin = users.some(
         (u) => u.email.toLowerCase() === ADMIN_USER.email.toLowerCase() || u.id === ADMIN_USER.id
       );
@@ -64,7 +85,6 @@ export function initAuthStorage() {
         modified = true;
       }
 
-      // Guarantee KOF_Master98 (demo student) exists
       const hasDemoStudent = users.some(
         (u) =>
           u.email.toLowerCase() === DEMO_STUDENT_USER.email.toLowerCase() ||
@@ -85,34 +105,40 @@ export function initAuthStorage() {
 }
 
 // Explicitly restore all default demonstration accounts
-export function restoreDefaultUsers() {
+export async function restoreDefaultUsers() {
+  const apiRes = await fetchAuthApi('restore_default_users', 'POST');
+  if (apiRes && apiRes.success) {
+    initAuthStorage();
+    return { success: true, count: INITIAL_DEMO_USERS.length };
+  }
+
+  // Fallback to localStorage
   if (typeof window === 'undefined') return { success: false };
   try {
-    initAuthStorage();
-    const existingRaw = localStorage.getItem(USERS_STORAGE_KEY);
-    let users = existingRaw ? JSON.parse(existingRaw) : [];
-    let addedCount = 0;
+    const currentUsers = getLocalUsers();
+    let countRestored = 0;
 
-    for (const demoUser of INITIAL_DEMO_USERS) {
-      const exists = users.some(
+    INITIAL_DEMO_USERS.forEach((defaultUser) => {
+      const exists = currentUsers.some(
         (u) =>
-          u.email.toLowerCase() === demoUser.email.toLowerCase() ||
-          u.gamertag.toLowerCase() === demoUser.gamertag.toLowerCase()
+          u.id === defaultUser.id ||
+          u.email.toLowerCase() === defaultUser.email.toLowerCase() ||
+          u.gamertag.toLowerCase() === defaultUser.gamertag.toLowerCase()
       );
       if (!exists) {
-        users.push(demoUser);
-        addedCount++;
+        currentUsers.push(defaultUser);
+        countRestored++;
       }
-    }
+    });
 
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    return { success: true, count: addedCount };
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(currentUsers));
+    return { success: true, count: countRestored };
   } catch (err) {
     return { success: false, error: err.message };
   }
 }
 
-// Get currently logged-in user
+// Get the currently authenticated user session (synchronous for initial React load)
 export function getLoggedInUser() {
   if (typeof window === 'undefined') return null;
   try {
@@ -123,9 +149,7 @@ export function getLoggedInUser() {
   }
 }
 
-// Get all registered users
-export function getRegisteredUsers() {
-  if (typeof window === 'undefined') return INITIAL_DEMO_USERS;
+function getLocalUsers() {
   try {
     initAuthStorage();
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
@@ -135,10 +159,33 @@ export function getRegisteredUsers() {
   }
 }
 
+// Get all registered users (async with API + localStorage fallback)
+export async function getRegisteredUsers() {
+  const apiRes = await fetchAuthApi('users');
+  if (apiRes && apiRes.success && Array.isArray(apiRes.users)) {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(apiRes.users));
+    return apiRes.users;
+  }
+  return getLocalUsers();
+}
+
 // Login with email or gamertag + password
-export function login(identifier, password) {
+export async function login(identifier, password) {
+  // 1. Try PHP / MySQL API
+  const apiRes = await fetchAuthApi('login', 'POST', { identifier, password });
+  if (apiRes) {
+    if (apiRes.success && apiRes.user) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(apiRes.user));
+      return { success: true, user: apiRes.user };
+    }
+    if (apiRes.error) {
+      return { success: false, error: apiRes.error };
+    }
+  }
+
+  // 2. Fallback to localStorage
   initAuthStorage();
-  const users = getRegisteredUsers();
+  const users = getLocalUsers();
   const cleanId = identifier.trim().toLowerCase();
   const cleanPass = password.trim();
 
@@ -155,10 +202,8 @@ export function login(identifier, password) {
     };
   }
 
-  // Determine role (default to 'admin' if email matches ADMIN_USER)
   const role = user.role || (user.email.toLowerCase() === ADMIN_USER.email.toLowerCase() ? 'admin' : 'user');
 
-  // Create sanitized session (omit password)
   const sessionUser = {
     id: user.id,
     gamertag: user.gamertag,
@@ -173,162 +218,25 @@ export function login(identifier, password) {
 }
 
 // Register new account (student)
-export function register({ gamertag, email, password, mainChar }) {
+export async function register({ gamertag, email, password, mainChar }) {
+  // 1. Try PHP / MySQL API
+  const apiRes = await fetchAuthApi('register', 'POST', { gamertag, email, password, mainChar });
+  if (apiRes) {
+    if (apiRes.success && apiRes.user) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(apiRes.user));
+      return { success: true, user: apiRes.user };
+    }
+    if (apiRes.error) {
+      return { success: false, error: apiRes.error };
+    }
+  }
+
+  // 2. Fallback to localStorage
   initAuthStorage();
-  const users = getRegisteredUsers();
+  const users = getLocalUsers();
   const cleanGamertag = gamertag.trim();
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = password.trim();
-
-  if (cleanGamertag.length < 3) {
-    return { success: false, error: 'El Gamertag debe tener al menos 3 caracteres.' };
-  }
-  if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-    return { success: false, error: 'Por favor ingresa un correo electrónico válido.' };
-  }
-  if (cleanPass.length < 4) {
-    return { success: false, error: 'La contraseña debe tener al menos 4 caracteres.' };
-  }
-
-  // Check duplicates
-  const emailExists = users.some((u) => u.email.toLowerCase() === cleanEmail);
-  if (emailExists) {
-    return { success: false, error: 'Ya existe una cuenta registrada con este correo.' };
-  }
-
-  const gamertagExists = users.some(
-    (u) => u.gamertag.toLowerCase() === cleanGamertag.toLowerCase()
-  );
-  if (gamertagExists) {
-    return { success: false, error: 'Este Gamertag ya está en uso. Elige otro nombre.' };
-  }
-
-  const newUser = {
-    id: `user_${Date.now()}`,
-    gamertag: cleanGamertag,
-    email: cleanEmail,
-    password: cleanPass,
-    role: 'user',
-    mainChar: mainChar || 'iori',
-    rank: 'Rank C (Nuevo Alumno)',
-    joinedDate: new Date().toISOString().split('T')[0],
-  };
-
-  users.push(newUser);
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-
-  // Automatically log in the user
-  const sessionUser = {
-    id: newUser.id,
-    gamertag: newUser.gamertag,
-    email: newUser.email,
-    role: newUser.role,
-    mainChar: newUser.mainChar,
-    rank: newUser.rank,
-  };
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionUser));
-
-  return { success: true, user: sessionUser };
-}
-
-// Logout
-export function logout() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(CURRENT_USER_KEY);
-}
-
-// ============================================================================
-// ADMINISTRATOR ACCOUNT CONTROL FUNCTIONS
-// ============================================================================
-
-// Admin: Update user account (Gamertag, Email, MainChar, Rank, Role, Password)
-export function adminUpdateUser(userId, updatedFields) {
-  initAuthStorage();
-  const users = getRegisteredUsers();
-  const index = users.findIndex((u) => u.id === userId);
-
-  if (index === -1) {
-    return { success: false, error: 'Usuario no encontrado.' };
-  }
-
-  // Prevent changing email/gamertag to an existing one
-  if (updatedFields.email) {
-    const cleanEmail = updatedFields.email.trim().toLowerCase();
-    const emailConflict = users.some(
-      (u, idx) => idx !== index && u.email.toLowerCase() === cleanEmail
-    );
-    if (emailConflict) {
-      return { success: false, error: 'El correo ya está en uso por otra cuenta.' };
-    }
-  }
-
-  if (updatedFields.gamertag) {
-    const cleanGamertag = updatedFields.gamertag.trim().toLowerCase();
-    const tagConflict = users.some(
-      (u, idx) => idx !== index && u.gamertag.toLowerCase() === cleanGamertag
-    );
-    if (tagConflict) {
-      return { success: false, error: 'El Gamertag ya está en uso por otra cuenta.' };
-    }
-  }
-
-  const existingUser = users[index];
-  const merged = {
-    ...existingUser,
-    ...updatedFields,
-    email: updatedFields.email ? updatedFields.email.trim().toLowerCase() : existingUser.email,
-    gamertag: updatedFields.gamertag ? updatedFields.gamertag.trim() : existingUser.gamertag,
-    password: updatedFields.password ? updatedFields.password.trim() : existingUser.password,
-  };
-
-  users[index] = merged;
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-
-  // If the updated user is currently logged in, update the session
-  const current = getLoggedInUser();
-  if (current && current.id === userId) {
-    const updatedSession = {
-      id: merged.id,
-      gamertag: merged.gamertag,
-      email: merged.email,
-      role: merged.role || 'user',
-      mainChar: merged.mainChar,
-      rank: merged.rank,
-    };
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedSession));
-  }
-
-  return { success: true, user: merged };
-}
-
-// Admin: Delete user account
-export function adminDeleteUser(userId) {
-  initAuthStorage();
-  const users = getRegisteredUsers();
-  const target = users.find((u) => u.id === userId);
-
-  if (!target) {
-    return { success: false, error: 'Usuario no encontrado.' };
-  }
-
-  // Safety: Prevent deleting the primary admin account
-  if (target.email.toLowerCase() === ADMIN_USER.email.toLowerCase() || target.id === ADMIN_USER.id) {
-    return { success: false, error: 'No es posible eliminar la cuenta principal de Administrador.' };
-  }
-
-  const filtered = users.filter((u) => u.id !== userId);
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(filtered));
-
-  return { success: true };
-}
-
-// Admin: Create user account manually
-export function adminCreateUser({ gamertag, email, password, mainChar, rank, role }) {
-  initAuthStorage();
-  const users = getRegisteredUsers();
-  const cleanGamertag = (gamertag || '').trim();
-  const cleanEmail = (email || '').trim().toLowerCase();
-  const cleanPass = (password || '').trim();
 
   if (cleanGamertag.length < 3) {
     return { success: false, error: 'El Gamertag debe tener al menos 3 caracteres.' };
@@ -340,21 +248,179 @@ export function adminCreateUser({ gamertag, email, password, mainChar, rank, rol
     return { success: false, error: 'La contraseña debe tener al menos 4 caracteres.' };
   }
 
-  if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
-    return { success: false, error: 'Ya existe una cuenta con este correo.' };
+  const existsGamertag = users.some((u) => u.gamertag.toLowerCase() === cleanGamertag.toLowerCase());
+  if (existsGamertag) {
+    return { success: false, error: `El Gamertag "${cleanGamertag}" ya está en uso.` };
   }
-  if (users.some((u) => u.gamertag.toLowerCase() === cleanGamertag.toLowerCase())) {
-    return { success: false, error: 'Este Gamertag ya está en uso.' };
+
+  const existsEmail = users.some((u) => u.email.toLowerCase() === cleanEmail);
+  if (existsEmail) {
+    return { success: false, error: `El correo "${cleanEmail}" ya está registrado.` };
   }
 
   const newUser = {
-    id: `user_${Date.now()}`,
+    id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    gamertag: cleanGamertag,
+    email: cleanEmail,
+    password: cleanPass,
+    role: 'user',
+    mainChar: mainChar || 'iori',
+    rank: 'Rank B',
+    joinedDate: new Date().toISOString().split('T')[0],
+  };
+
+  users.push(newUser);
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+  const sessionUser = {
+    id: newUser.id,
+    gamertag: newUser.gamertag,
+    email: newUser.email,
+    role: newUser.role,
+    mainChar: newUser.mainChar,
+    rank: newUser.rank,
+  };
+
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionUser));
+  return { success: true, user: sessionUser };
+}
+
+// Logout currently authenticated user
+export function logout() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(CURRENT_USER_KEY);
+}
+
+// Admin: Update user properties
+export async function adminUpdateUser(userId, updatedFields) {
+  const apiRes = await fetchAuthApi('update_user', 'POST', { id: userId, ...updatedFields });
+  if (apiRes && apiRes.success) {
+    return { success: true, user: apiRes.user };
+  }
+
+  // Fallback to localStorage
+  initAuthStorage();
+  const users = getLocalUsers();
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx === -1) {
+    return { success: false, error: 'Usuario no encontrado.' };
+  }
+
+  const cleanGamertag = updatedFields.gamertag?.trim();
+  const cleanEmail = updatedFields.email?.trim().toLowerCase();
+
+  if (cleanGamertag) {
+    const duplicate = users.some(
+      (u) => u.id !== userId && u.gamertag.toLowerCase() === cleanGamertag.toLowerCase()
+    );
+    if (duplicate) {
+      return { success: false, error: `El gamertag "${cleanGamertag}" ya está en uso por otra cuenta.` };
+    }
+  }
+
+  if (cleanEmail) {
+    const duplicate = users.some(
+      (u) => u.id !== userId && u.email.toLowerCase() === cleanEmail
+    );
+    if (duplicate) {
+      return { success: false, error: `El email "${cleanEmail}" ya pertenece a otra cuenta.` };
+    }
+  }
+
+  users[idx] = {
+    ...users[idx],
+    ...updatedFields,
+    gamertag: cleanGamertag || users[idx].gamertag,
+    email: cleanEmail || users[idx].email,
+  };
+
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+  const currentSession = getLoggedInUser();
+  if (currentSession && currentSession.id === userId) {
+    const updatedSession = {
+      ...currentSession,
+      gamertag: users[idx].gamertag,
+      email: users[idx].email,
+      rank: users[idx].rank,
+      mainChar: users[idx].mainChar,
+      role: users[idx].role,
+    };
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedSession));
+    return { success: true, user: updatedSession };
+  }
+
+  return { success: true, user: users[idx] };
+}
+
+// Admin: Delete a user
+export async function adminDeleteUser(userId) {
+  if (userId === ADMIN_USER.id) {
+    return { success: false, error: 'No es posible eliminar la cuenta del Administrador Raíz.' };
+  }
+
+  const apiRes = await fetchAuthApi('delete_user', 'POST', { id: userId });
+  if (apiRes && apiRes.success) {
+    const users = getLocalUsers().filter((u) => u.id !== userId);
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    return { success: true };
+  }
+
+  // Fallback to localStorage
+  initAuthStorage();
+  const users = getLocalUsers();
+  const user = users.find((u) => u.id === userId);
+  if (!user) {
+    return { success: false, error: 'Usuario no encontrado.' };
+  }
+
+  const updatedUsers = users.filter((u) => u.id !== userId);
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
+  return { success: true };
+}
+
+// Admin: Create an arbitrary user
+export async function adminCreateUser({ gamertag, email, password, mainChar, rank, role }) {
+  const apiRes = await fetchAuthApi('create_user', 'POST', { gamertag, email, password, mainChar, rank, role });
+  if (apiRes && apiRes.success) {
+    return { success: true, user: apiRes.user };
+  }
+
+  // Fallback to localStorage
+  initAuthStorage();
+  const users = getLocalUsers();
+  const cleanGamertag = gamertag.trim();
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanPass = password.trim();
+
+  if (cleanGamertag.length < 3) {
+    return { success: false, error: 'El Gamertag debe tener al menos 3 caracteres.' };
+  }
+  if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+    return { success: false, error: 'Ingresa un correo electrónico válido.' };
+  }
+  if (cleanPass.length < 4) {
+    return { success: false, error: 'La contraseña debe tener al menos 4 caracteres.' };
+  }
+
+  const existsGamertag = users.some((u) => u.gamertag.toLowerCase() === cleanGamertag.toLowerCase());
+  if (existsGamertag) {
+    return { success: false, error: `El Gamertag "${cleanGamertag}" ya está en uso.` };
+  }
+
+  const existsEmail = users.some((u) => u.email.toLowerCase() === cleanEmail);
+  if (existsEmail) {
+    return { success: false, error: `El correo "${cleanEmail}" ya está registrado.` };
+  }
+
+  const newUser = {
+    id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
     gamertag: cleanGamertag,
     email: cleanEmail,
     password: cleanPass,
     role: role || 'user',
     mainChar: mainChar || 'iori',
-    rank: rank || (role === 'admin' ? 'System Operator (Admin)' : 'Rank B'),
+    rank: rank || 'Rank B',
     joinedDate: new Date().toISOString().split('T')[0],
   };
 
@@ -364,12 +430,28 @@ export function adminCreateUser({ gamertag, email, password, mainChar, rank, rol
   return { success: true, user: newUser };
 }
 
-// Admin: Quick password reset
-export function adminResetPassword(userId, newPassword) {
+// Admin: Reset password
+export async function adminResetPassword(userId, newPassword) {
+  const apiRes = await fetchAuthApi('reset_password', 'POST', { id: userId, newPassword });
+  if (apiRes && apiRes.success) {
+    return { success: true };
+  }
+
+  // Fallback to localStorage
   initAuthStorage();
-  const cleanPass = (newPassword || '').trim();
+  const users = getLocalUsers();
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx === -1) {
+    return { success: false, error: 'Usuario no encontrado.' };
+  }
+
+  const cleanPass = newPassword.trim();
   if (cleanPass.length < 4) {
     return { success: false, error: 'La nueva contraseña debe tener al menos 4 caracteres.' };
   }
-  return adminUpdateUser(userId, { password: cleanPass });
+
+  users[idx].password = cleanPass;
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+  return { success: true };
 }

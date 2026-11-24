@@ -37,8 +37,9 @@ export function AdminBookingsView({ showToast }) {
   const [copiedId, setCopiedId] = useState(null);
   const [deleteConfirmBooking, setDeleteConfirmBooking] = useState(null);
 
-  const refreshList = () => {
-    setBookings(getBookingRequests());
+  const refreshList = async () => {
+    const list = await getBookingRequests();
+    setBookings(list);
   };
 
   useEffect(() => {
@@ -114,9 +115,9 @@ export function AdminBookingsView({ showToast }) {
   }, [bookings, searchQuery, statusFilter, planFilter]);
 
   // Actions
-  const handleStatusChange = (bookingId, newStatus) => {
+  const handleStatusChange = async (bookingId, newStatus) => {
     arcadeAudio.playCoin();
-    const res = updateBookingStatus(bookingId, newStatus);
+    const res = await updateBookingStatus(bookingId, newStatus);
     if (res.success) {
       refreshList();
       const statusLabels = {
@@ -141,10 +142,10 @@ export function AdminBookingsView({ showToast }) {
     }, 2500);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteConfirmBooking) return;
     arcadeAudio.playDeselect();
-    const res = deleteBookingRequest(deleteConfirmBooking.id);
+    const res = await deleteBookingRequest(deleteConfirmBooking.id);
     if (res.success) {
       showToast(`Solicitud de ${deleteConfirmBooking.userGamertag || deleteConfirmBooking.name} eliminada.`);
       refreshList();
@@ -154,9 +155,9 @@ export function AdminBookingsView({ showToast }) {
     }
   };
 
-  const handleRestoreDemos = () => {
+  const handleRestoreDemos = async () => {
     arcadeAudio.playFight();
-    const res = restoreDefaultBookings();
+    const res = await restoreDefaultBookings();
     if (res.success) {
       refreshList();
       showToast(

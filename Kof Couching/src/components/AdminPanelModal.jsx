@@ -66,13 +66,13 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
   const [formError, setFormError] = useState(null);
 
   // Load all users
-  const refreshUsersList = () => {
-    const list = getRegisteredUsers();
+  const refreshUsersList = async () => {
+    const list = await getRegisteredUsers();
     setUsers(list);
   };
 
-  const refreshBookingsCount = () => {
-    const bList = getBookingRequests();
+  const refreshBookingsCount = async () => {
+    const bList = await getBookingRequests();
     setBookings(bList);
   };
 
@@ -91,9 +91,9 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
   };
 
   // Restore Default Demo Users (e.g. KOF_Master98)
-  const handleRestoreDemoUsers = () => {
+  const handleRestoreDemoUsers = async () => {
     arcadeAudio.playFight();
-    const res = restoreDefaultUsers();
+    const res = await restoreDefaultUsers();
     if (res.success) {
       refreshUsersList();
       showToast(
@@ -129,11 +129,11 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
   const topMainChar = CHARACTERS.find((c) => c.id === topMainId);
 
   // Handle Edit Submit
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
     setFormError(null);
 
-    const res = adminUpdateUser(editingUser.id, {
+    const res = await adminUpdateUser(editingUser.id, {
       gamertag: editingUser.gamertag,
       email: editingUser.email,
       rank: editingUser.rank,
@@ -158,11 +158,11 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
   };
 
   // Handle Create Submit
-  const handleCreateUser = (e) => {
+  const handleCreateUser = async (e) => {
     e.preventDefault();
     setFormError(null);
 
-    const res = adminCreateUser(newUserData);
+    const res = await adminCreateUser(newUserData);
     if (!res.success) {
       setFormError(res.error);
       arcadeAudio.playDeselect();
@@ -184,7 +184,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
   };
 
   // Handle Password Reset
-  const handleConfirmPasswordReset = (e) => {
+  const handleConfirmPasswordReset = async (e) => {
     e.preventDefault();
     if (newPasswordVal.trim().length < 4) {
       setFormError('La contraseña debe tener al menos 4 caracteres.');
@@ -192,7 +192,7 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
       return;
     }
 
-    const res = adminResetPassword(passwordModalUser.id, newPasswordVal.trim());
+    const res = await adminResetPassword(passwordModalUser.id, newPasswordVal.trim());
     if (!res.success) {
       setFormError(res.error);
       arcadeAudio.playDeselect();
@@ -207,9 +207,9 @@ export function AdminPanelModal({ isOpen, onClose, currentUser, onSessionUpdated
   };
 
   // Handle Delete User
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteConfirmUser) return;
-    const res = adminDeleteUser(deleteConfirmUser.id);
+    const res = await adminDeleteUser(deleteConfirmUser.id);
     if (!res.success) {
       showToast(res.error, true);
       arcadeAudio.playDeselect();

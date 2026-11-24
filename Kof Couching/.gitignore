@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sensitive backend config & deployment scripts
+api/config.php
+*.ps1

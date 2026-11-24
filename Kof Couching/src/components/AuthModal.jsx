@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Lock, UserPlus, LogIn, Flame, ShieldAlert, CheckCircle2, Sparkles, Crown } from 'lucide-react';
-import { login, register, ADMIN_USER, DEMO_STUDENT_USER } from '../utils/auth';
+import { X, Lock, UserPlus, LogIn, Flame, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { login, register } from '../utils/auth';
 import { CHARACTERS } from '../data/characters';
 import { CHARACTER_IMAGES } from '../assets/characterImages';
 import { arcadeAudio } from '../utils/audio';
@@ -21,11 +21,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
   const [regPassword, setRegPassword] = useState('');
   const [regMainChar, setRegMainChar] = useState('iori');
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    const res = login(loginIdentifier, loginPassword);
+    const res = await login(loginIdentifier, loginPassword);
     if (!res.success) {
       arcadeAudio.playDeselect();
       setError(res.error);
@@ -37,11 +37,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
     onClose();
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    const res = register({
+    const res = await register({
       gamertag: regGamertag,
       email: regEmail,
       password: regPassword,
@@ -57,24 +57,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
     arcadeAudio.playFight();
     onAuthSuccess(res.user);
     onClose();
-  };
-
-  const handleQuickDemoLogin = () => {
-    arcadeAudio.playCoin();
-    const res = login('demo@kof98.com', 'kof98password');
-    if (res.success) {
-      onAuthSuccess(res.user);
-      onClose();
-    }
-  };
-
-  const handleQuickAdminLogin = () => {
-    arcadeAudio.playFight();
-    const res = login(ADMIN_USER.email, ADMIN_USER.password);
-    if (res.success) {
-      onAuthSuccess(res.user);
-      onClose();
-    }
   };
 
   return (
@@ -306,59 +288,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', onAuthSucces
                 <LogIn size={18} color="#ffe066" />
                 <span>INGRESAR AHORA</span>
               </button>
-
-              {/* Quick One-Click Access Options */}
-              <div
-                style={{
-                  marginTop: '0.6rem',
-                  paddingTop: '0.85rem',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.55rem',
-                }}
-              >
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', textAlign: 'center' }}>
-                  Accesos de Prueba Rápida (1-Click):
-                </span>
-
-                {/* Student Demo Button */}
-                <button
-                  type="button"
-                  onClick={handleQuickDemoLogin}
-                  className="btn-mode-select"
-                  style={{
-                    width: '100%',
-                    fontSize: '0.9rem',
-                    padding: '0.45rem',
-                  }}
-                  title="demo@kof98.com / kof98password"
-                >
-                  <Sparkles size={14} color="#00f0ff" />
-                  <span>Alumno Demo: KOF_Master98</span>
-                </button>
-
-                {/* Administrator Demo Button */}
-                <button
-                  type="button"
-                  onClick={handleQuickAdminLogin}
-                  className="btn-snk-gold"
-                  style={{
-                    width: '100%',
-                    fontSize: '0.95rem',
-                    padding: '0.5rem',
-                    gap: '0.5rem',
-                  }}
-                  title="admin@kof98.com / admin98"
-                >
-                  <Crown size={15} color="#000" />
-                  <span style={{ color: '#000', fontWeight: 800 }}>Acceder como Administrador (Control Total)</span>
-                </button>
-
-                <div style={{ fontSize: '0.68rem', color: '#64748b', textAlign: 'center' }}>
-                  Admin: <code>admin@kof98.com</code> | Clave: <code>admin98</code>
-                </div>
-              </div>
             </form>
           ) : (
             /* Register Form */

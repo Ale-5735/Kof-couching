@@ -1,9 +1,8 @@
 // Sistema de Gestión y Persistencia de Solicitudes de Clases (KOF '98 Coaching Lab)
-// Almacena en localStorage las reservas vinculando al usuario registrado y el plan solicitado.
+// Almacena en PHP/MySQL con sincronización y fallback automático en localStorage
 
 const BOOKINGS_STORAGE_KEY = 'kof98_class_bookings';
 
-// Solicitudes iniciales de demostración
 const INITIAL_DEMO_BOOKINGS = [
   {
     id: 'booking_demo_1',
@@ -26,8 +25,8 @@ const INITIAL_DEMO_BOOKINGS = [
     },
     team: 'Iori • Orochi Chris • Daimon',
     goals: 'Perfeccionar el neutral contra Daimons defensivos y optimizar las confirmaciones de 1-hit con Iori en situaciones de presión de esquina.',
-    status: 'in_progress', // 'pending' | 'in_progress' | 'completed' | 'cancelled'
-    requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString() // hace 6 horas
+    status: 'in_progress',
+    requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString()
   },
   {
     id: 'booking_demo_2',
@@ -51,33 +50,24 @@ const INITIAL_DEMO_BOOKINGS = [
     team: 'Daimon • O. Yashiro • Ralf',
     goals: 'Aprender la ejecución consistente del Roll Cancel Bug de Daimon y cómo safear saltos contra zoneo pesado de Athena y Chris.',
     status: 'pending',
-    requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString() // hace 22 horas
-  },
-  {
-    id: 'booking_demo_3',
-    userId: 'user_guest_99',
-    userGamertag: 'TerryBuster_ARG',
-    userEmail: 'terry.arg@gmail.com',
-    userRank: 'Rank C',
-    userMainChar: 'terry',
-    name: 'TerryBuster_ARG',
-    discord: '+5491145892301',
-    platform: 'Steam KOF 98 UM FE',
-    level: 'Principiante / Intermedio',
-    plan: {
-      id: 'diagnostic',
-      name: 'VOD Review & Diagnóstico Táctico',
-      price: '$25 USD',
-      duration: '75 Minutos',
-      tag: '1 SESIÓN INTENSIVA',
-      badgeColor: '#38bdf8'
-    },
-    team: 'Terry • Mary • Kyo',
-    goals: 'Tengo muchas dudas sobre por qué me castigan tanto al saltar con Terry. Quiero que revisen mis replays para corregir vicios de salto.',
-    status: 'pending',
-    requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString() // hace 2 días
+    requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString()
   }
 ];
+
+async function fetchBookingApi(action, method = 'GET', body = null) {
+  try {
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`/api/bookings.php?action=${action}`, opts);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    return null;
+  }
+}
 
 export function initBookingsStorage() {
   if (typeof window === 'undefined') return;
@@ -87,85 +77,105 @@ export function initBookingsStorage() {
   }
 }
 
-export function getBookingRequests() {
-  if (typeof window === 'undefined') return INITIAL_DEMO_BOOKINGS;
+function getLocalBookings() {
   try {
+    initBookingsStorage();
     const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-    if (!raw) {
-      initBookingsStorage();
-      return INITIAL_DEMO_BOOKINGS;
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_DEMO_BOOKINGS;
-  } catch (err) {
-    console.error('Error reading bookings from localStorage:', err);
+    return raw ? JSON.parse(raw) : INITIAL_DEMO_BOOKINGS;
+  } catch {
     return INITIAL_DEMO_BOOKINGS;
   }
 }
 
-export function saveBookingRequest(bookingData) {
-  if (typeof window === 'undefined') return { success: false, error: 'No storage available' };
-  try {
-    const currentList = getBookingRequests();
-    const newEntry = {
-      id: bookingData.id || `booking_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      status: bookingData.status || 'pending',
-      requestedAt: bookingData.requestedAt || new Date().toISOString(),
-      ...bookingData
-    };
+export async function getBookingRequests() {
+  const apiRes = await fetchBookingApi('list');
+  if (apiRes && apiRes.success && Array.isArray(apiRes.bookings)) {
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(apiRes.bookings));
+    return apiRes.bookings;
+  }
+  return getLocalBookings();
+}
 
+export async function saveBookingRequest(bookingData) {
+  const newEntry = {
+    id: bookingData.id || `booking_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    status: bookingData.status || 'pending',
+    requestedAt: bookingData.requestedAt || new Date().toISOString(),
+    ...bookingData
+  };
+
+  const apiRes = await fetchBookingApi('create', 'POST', newEntry);
+  if (apiRes && apiRes.success) {
+    const local = getLocalBookings();
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify([apiRes.booking || newEntry, ...local]));
+    return { success: true, booking: apiRes.booking || newEntry };
+  }
+
+  // Fallback to localStorage
+  try {
+    const currentList = getLocalBookings();
     const updated = [newEntry, ...currentList];
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
     return { success: true, booking: newEntry };
   } catch (err) {
-    console.error('Error saving booking to localStorage:', err);
     return { success: false, error: err.message };
   }
 }
 
-export function updateBookingStatus(bookingId, newStatus) {
-  if (typeof window === 'undefined') return { success: false, error: 'No storage available' };
-  try {
-    const currentList = getBookingRequests();
-    const idx = currentList.findIndex(b => b.id === bookingId);
-    if (idx === -1) {
-      return { success: false, error: 'Solicitud no encontrada' };
+export async function updateBookingStatus(bookingId, newStatus) {
+  const apiRes = await fetchBookingApi('update_status', 'POST', { id: bookingId, status: newStatus });
+  if (apiRes && apiRes.success) {
+    const list = getLocalBookings();
+    const idx = list.findIndex(b => b.id === bookingId);
+    if (idx !== -1) {
+      list[idx].status = newStatus;
+      localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(list));
     }
+    return { success: true };
+  }
 
-    currentList[idx] = {
-      ...currentList[idx],
-      status: newStatus,
-      updatedAt: new Date().toISOString()
-    };
-
+  // Fallback
+  try {
+    const currentList = getLocalBookings();
+    const idx = currentList.findIndex(b => b.id === bookingId);
+    if (idx === -1) return { success: false, error: 'Solicitud no encontrada' };
+    currentList[idx].status = newStatus;
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(currentList));
-    return { success: true, booking: currentList[idx] };
+    return { success: true };
   } catch (err) {
-    console.error('Error updating booking status:', err);
     return { success: false, error: err.message };
   }
 }
 
-export function deleteBookingRequest(bookingId) {
-  if (typeof window === 'undefined') return { success: false, error: 'No storage available' };
+export async function deleteBookingRequest(bookingId) {
+  const apiRes = await fetchBookingApi('delete', 'POST', { id: bookingId });
+  if (apiRes && apiRes.success) {
+    const list = getLocalBookings().filter(b => b.id !== bookingId);
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(list));
+    return { success: true };
+  }
+
+  // Fallback
   try {
-    const currentList = getBookingRequests();
+    const currentList = getLocalBookings();
     const filtered = currentList.filter(b => b.id !== bookingId);
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(filtered));
     return { success: true };
   } catch (err) {
-    console.error('Error deleting booking:', err);
     return { success: false, error: err.message };
   }
 }
 
-export function restoreDefaultBookings() {
-  if (typeof window === 'undefined') return { success: false, count: 0 };
+export async function restoreDefaultBookings() {
+  const apiRes = await fetchBookingApi('restore_default_bookings', 'POST');
+  if (apiRes && apiRes.success) {
+    return { success: true, count: INITIAL_DEMO_BOOKINGS.length };
+  }
+
+  // Fallback
   try {
-    const currentList = getBookingRequests();
-    const missing = INITIAL_DEMO_BOOKINGS.filter(
-      demo => !currentList.some(b => b.id === demo.id)
-    );
+    const currentList = getLocalBookings();
+    const missing = INITIAL_DEMO_BOOKINGS.filter(d => !currentList.some(b => b.id === d.id));
     const updated = [...missing, ...currentList];
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updated));
     return { success: true, count: missing.length };
@@ -173,4 +183,3 @@ export function restoreDefaultBookings() {
     return { success: false, error: err.message };
   }
 }
-
